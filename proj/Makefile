@@ -40,7 +40,7 @@ LWIPDIR=$(CONTRIBDIR)/lwip/src
 
 CCDEP=gcc
 CC=gcc
-CFLAGS=-g -Wall -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
+CFLAGS=-g -O3 -Wall -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
 
 CFLAGS:=$(CFLAGS) \
 	-march=native -I$(LWIPDIR)/include -I$(LWIPARCH)/include -I$(LWIPARCH)/include/arch -I$(LWIPARCH)/include/netif -I$(LWIPDIR)/include/ipv4 \

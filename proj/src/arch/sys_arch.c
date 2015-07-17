@@ -63,7 +63,7 @@ static u64_t clock_ticks_msec;
 static struct sys_thread *threads = NULL;
 static pthread_mutex_t threads_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x1", "-n", "2", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;
@@ -145,7 +145,7 @@ void sys_init(void)
         {
            LWIP_PLATFORM_DIAG(("Initializing port %hhu... ", portid));
 
-           res = rte_eth_dev_configure(portid, nb_cores, nb_cores, &port_conf);
+           res = rte_eth_dev_configure(portid, 1, 1, &port_conf);
 
            if (res < 0)
            {
@@ -155,7 +155,7 @@ void sys_init(void)
 
            rte_eth_macaddr_get(portid, &port_eth_addr);
 
-           for (queueid = 0; queueid < nb_cores; queueid++) 
+           for (queueid = 0; queueid < 1; queueid++) 
            {
                res = rte_eth_rx_queue_setup(portid, queueid, RX_DESC_DEFAULT,
                                             rte_eth_dev_socket_id(portid),

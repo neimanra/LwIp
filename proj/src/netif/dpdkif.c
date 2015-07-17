@@ -241,11 +241,11 @@ dpdkif_rx_thread_func(void * arg)
     {
         for (portid = 0; portid < nb_ports; portid++) 
         {
-            nb_rx_pkts = rte_eth_rx_burst(portid, core_id, rx_mbuf_arr, DPDK_MAX_RX_BURST);
+            nb_rx_pkts = rte_eth_rx_burst(portid, 0, rx_mbuf_arr, DPDK_MAX_RX_BURST);
 
             if (0 != nb_rx_pkts) 
             {
-                LWIP_PLATFORM_DIAG(("Received %hu packets\n", nb_rx_pkts));
+                //LWIP_PLATFORM_DIAG(("Received %hu packets\n", nb_rx_pkts));
                 netif = port2netif_map[portid];
                 low_level_input(netif, rx_mbuf_arr, nb_rx_pkts);
             }
