@@ -117,29 +117,6 @@ dpdkif_init(struct netif *netif)
         netif->output = etharp_output;
         
         port2netif_map[portid] = netif;
-
-/*
-        res = rte_eth_dev_start(portid);
-
-        if (res < 0)
-        {
-            LWIP_PLATFORM_DIAG(("rte_eth_dev_start:err=%d, port=%hhu\n", res, portid));
-            abort();
-        }
-
-        LWIP_PLATFORM_DIAG(("done: \n"));
-
-        rte_eth_promiscuous_enable(portid);
-
-        LWIP_PLATFORM_DIAG(("Port %hhu, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
-                           portid,
-                           port_eth_addr.addr_bytes[0],
-                           port_eth_addr.addr_bytes[1],
-                           port_eth_addr.addr_bytes[2],
-                           port_eth_addr.addr_bytes[3],
-                           port_eth_addr.addr_bytes[4],
-                           port_eth_addr.addr_bytes[5]));
-*/
     }
 
     else
@@ -171,11 +148,14 @@ dpdkif_input(struct netif *netif, struct pbuf *p)
     /* IP or ARP packet? */
     case ETHTYPE_IP:
     case ETHTYPE_ARP:
+        //ethernet_input(p, netif);
+        //break;
     #if PPPOE_SUPPORT
     /* PPPoE packet? */
     case ETHTYPE_PPPOEDISC:
     case ETHTYPE_PPPOE:
     #endif /* PPPOE_SUPPORT */
+    //pbuf_header(p, -((s16_t)sizeof(struct eth_hdr)));
     /* full packet send to tcpip_thread to process */
     if (netif->input(p, netif) != ERR_OK) 
     {

@@ -18,4 +18,7 @@ typedef struct sys_thread * sys_thread_t;
 #define sys_mbox_valid(mbox) (((mbox) != NULL) && (*(mbox) != NULL))
 #define sys_mbox_set_invalid(mbox) do { if((mbox) != NULL) { *(mbox) = NULL; }}while(0)
 
+struct pbuf * sys_arch_allocate_pbuf();
+void sys_arch_free_pbuf(struct pbuf * pbuf);
+
 #endif /* __ARCH_SYS_ARCH_H__ */

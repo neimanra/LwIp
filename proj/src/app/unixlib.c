@@ -78,7 +78,7 @@ tcpip_init_done(void *arg)
   IP4_ADDR(&netmask, 255,255,255,0);
   
   netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init,
-			      ethernet_input));
+			      tcpip_input/*ethernet_input*/));
 
   netif_set_up(&netif);
   sys_sem_signal(sem);

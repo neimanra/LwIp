@@ -42,7 +42,7 @@
  * Include user defined options first. Anything not defined in these files
  * will be set to standard values. Override anything you dont like!
  */
-#include "lwipopts.h"
+//#include "lwipopts.h"
 #include "lwip/debug.h"
 
 /*
@@ -88,6 +88,8 @@
    ---------- Internal Memory Pool Sizes ----------
    ------------------------------------------------
 */
+
+
 /**
  * MEMP_NUM_PBUF: the number of memp struct pbufs (used for PBUF_ROM and PBUF_REF).
  * If the application sends a lot of data out of ROM (or other static memory),
@@ -124,7 +126,7 @@
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_SEG                16
+#define MEMP_NUM_TCP_SEG                64//16
 
 /**
  * MEMP_NUM_REASSDATA: the number of simultaneously IP packets queued for

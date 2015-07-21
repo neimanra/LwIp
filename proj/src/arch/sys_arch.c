@@ -31,12 +31,14 @@
 #include "sys_arch.h"
 #include "lwip/err.h"
 #include "lwip/sys.h"
+#include "lwip/pbuf.h"
 #include "dpdkif.h"
 
 #define US_SLEEP_VAL (100)
 
 #define NB_MBUF      (8192)
 #define MBUF_SIZE    (2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
+#define MBUF_PBUF_OFFSET (RTE_PKTMBUF_HEADROOM - sizeof(struct pbuf))
 
 #define RX_DESC_DEFAULT (128)
 #define TX_DESC_DEFAULT (512)
@@ -46,9 +48,17 @@ struct sys_mbox
    struct  rte_ring * ring;
 };
 
+/*
 struct sys_sem 
 {
    rte_spinlock_t spinlock;
+};
+*/
+
+struct sys_sem {
+  unsigned int c;
+  pthread_cond_t cond;
+  pthread_mutex_t mutex;
 };
 
 struct sys_thread 
@@ -88,29 +98,29 @@ static const struct rte_eth_conf port_conf =
 
 void sys_init(void)
 {
-   static u8_t initialized = 0;
-   u8_t  nb_ports, nb_cores, portid, queueid;
-   struct ether_addr port_eth_addr;
+    static u8_t initialized = 0;
+    u8_t  nb_ports, nb_cores, portid, queueid;
+    struct ether_addr port_eth_addr;
 
-   if (0 == initialized) 
-   {
-       initialized = 1;
+    if (0 == initialized) 
+    {
+        initialized = 1;
 
-       s32_t res = rte_eal_init(dpdk_argc, dpdk_argv);
+        s32_t res = rte_eal_init(dpdk_argc, dpdk_argv);
 
-       if (res < 0)
-       {
-          LWIP_PLATFORM_DIAG(("Invalid EAL arguments\n"));
-          abort();
-       }
+        if (res < 0)
+        {
+            LWIP_PLATFORM_DIAG(("Invalid EAL arguments\n"));
+            abort();
+        }
 
-       /*Initialize system time constants*/
-       clock_ticks_sec = rte_get_timer_hz();
-       clock_ticks_msec = clock_ticks_sec / 1000;
+        /*Initialize system time constants*/
+        clock_ticks_sec = rte_get_timer_hz();
+        clock_ticks_msec = clock_ticks_sec / 1000;
 
-       LWIP_PLATFORM_DIAG(("CPU Hz: %llu\n", clock_ticks_sec));
+        LWIP_PLATFORM_DIAG(("CPU Hz: %llu\n", clock_ticks_sec));
 
-       dpdk_pktmbuf_pool = rte_mempool_create("mbuf_pool", 
+        dpdk_pktmbuf_pool = rte_mempool_create("mbuf_pool", 
                                                NB_MBUF,
                                                MBUF_SIZE, 
                                                0,
@@ -121,8 +131,8 @@ void sys_init(void)
 
         if (dpdk_pktmbuf_pool == NULL)
         {
-           LWIP_PLATFORM_DIAG(("Cannot init mbuf pool\n"));
-           abort();
+            LWIP_PLATFORM_DIAG(("Cannot init mbuf pool\n"));
+            abort();
         }
 
         nb_cores = rte_lcore_count();
@@ -132,50 +142,50 @@ void sys_init(void)
 
         if (nb_ports == 0)
         {
-           LWIP_PLATFORM_DIAG(("Error: no ethernet ports detected\n"));
-           abort();
+            LWIP_PLATFORM_DIAG(("Error: no ethernet ports detected\n"));
+            abort();
         }
 
         else
         {
-           LWIP_PLATFORM_DIAG(("Detected %hhu ports\n", nb_ports));
+            LWIP_PLATFORM_DIAG(("Detected %hhu ports\n", nb_ports));
         }
 
         for (portid = 0; portid < nb_ports; portid++) 
         {
-           LWIP_PLATFORM_DIAG(("Initializing port %hhu... ", portid));
+            LWIP_PLATFORM_DIAG(("Initializing port %hhu... ", portid));
 
-           res = rte_eth_dev_configure(portid, 1, 1, &port_conf);
+            res = rte_eth_dev_configure(portid, 1, 1, &port_conf);
 
-           if (res < 0)
-           {
-              LWIP_PLATFORM_DIAG(("Cannot configure device: err=%d, port=%hhu\n", res, portid));
-              abort();
-           }
+            if (res < 0)
+            {
+                LWIP_PLATFORM_DIAG(("Cannot configure device: err=%d, port=%hhu\n", res, portid));
+                abort();
+            }
 
-           rte_eth_macaddr_get(portid, &port_eth_addr);
+            rte_eth_macaddr_get(portid, &port_eth_addr);
 
-           for (queueid = 0; queueid < 1; queueid++) 
-           {
-               res = rte_eth_rx_queue_setup(portid, queueid, RX_DESC_DEFAULT,
-                                            rte_eth_dev_socket_id(portid),
-                                            NULL,
-                                            dpdk_pktmbuf_pool);
-
-               if (res < 0)
-               {
-                   LWIP_PLATFORM_DIAG(("rte_eth_rx_queue_setup:err=%d, port=%hhu\n", res, portid));
-                   abort();
-               }
-
-               res = rte_eth_tx_queue_setup(portid, queueid, TX_DESC_DEFAULT,
-                                            rte_eth_dev_socket_id(portid),
-                                            NULL);
+            for (queueid = 0; queueid < 1; queueid++) 
+            {
+                res = rte_eth_rx_queue_setup(portid, queueid, RX_DESC_DEFAULT,
+                                             rte_eth_dev_socket_id(portid),
+                                             NULL,
+                                             dpdk_pktmbuf_pool);
 
                 if (res < 0)
                 {
-                   LWIP_PLATFORM_DIAG(("rte_eth_tx_queue_setup:err=%d, port=%hhu\n", res, portid));
-                   abort();
+                    LWIP_PLATFORM_DIAG(("rte_eth_rx_queue_setup:err=%d, port=%hhu\n", res, portid));
+                    abort();
+                }
+
+                res = rte_eth_tx_queue_setup(portid, queueid, TX_DESC_DEFAULT,
+                                             rte_eth_dev_socket_id(portid),
+                                             NULL);
+
+                if (res < 0)
+                {
+                    LWIP_PLATFORM_DIAG(("rte_eth_tx_queue_setup:err=%d, port=%hhu\n", res, portid));
+                    abort();
                 }
 
                 res = rte_eth_dev_start(portid);
@@ -191,23 +201,19 @@ void sys_init(void)
                 rte_eth_promiscuous_enable(portid);
 
                 LWIP_PLATFORM_DIAG(("Port %hhu, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
-                                   portid,
-                                   port_eth_addr.addr_bytes[0],
-                                   port_eth_addr.addr_bytes[1],
-                                   port_eth_addr.addr_bytes[2],
-                                   port_eth_addr.addr_bytes[3],
-                                   port_eth_addr.addr_bytes[4],
-                                   port_eth_addr.addr_bytes[5]));
-           }
+                                    portid,
+                                    port_eth_addr.addr_bytes[0],
+                                    port_eth_addr.addr_bytes[1],
+                                    port_eth_addr.addr_bytes[2],
+                                    port_eth_addr.addr_bytes[3],
+                                    port_eth_addr.addr_bytes[4],
+                                    port_eth_addr.addr_bytes[5]));
+            }
         }
-
-       // rte_eal_mp_remote_launch ((lcore_function_t *)dpdkif_rx_thread_func, NULL, CALL_MASTER);
    }
-
-   return 0;
 }
 
-
+/*
 err_t sys_sem_new(sys_sem_t *sem, u8_t count)
 {
    struct sys_sem * isem = (struct sys_sem *)rte_malloc("NORM", sizeof(struct sys_sem), 0);
@@ -274,7 +280,7 @@ u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
       return (rte_get_timer_cycles() - start_ticks) / clock_ticks_msec;
    }
 }
-
+*/
 
 err_t sys_mbox_new(sys_mbox_t *mbox, int size)
 {
@@ -442,3 +448,153 @@ u32_t sys_now(void)
 {
    return rte_get_timer_cycles() / clock_ticks_msec;
 }
+
+
+struct pbuf * sys_arch_allocate_pbuf()
+{
+    struct rte_mbuf * mbuf = rte_pktmbuf_alloc(dpdk_pktmbuf_pool);
+
+    if (NULL != mbuf) 
+    {
+        return  (struct pbuf*)(((u8_t*)mbuf) + MBUF_PBUF_OFFSET);
+    }
+
+    return NULL;
+}
+
+void sys_arch_free_pbuf(struct pbuf * pbuf)
+{
+    rte_pktmbuf_free((((u8_t*)pbuf) - MBUF_PBUF_OFFSET));
+}
+
+
+/*-----------------------------------------------------------------------------------*/
+static struct sys_sem *
+sys_sem_new_internal(u8_t count)
+{
+  struct sys_sem *sem;
+
+  sem = (struct sys_sem *)malloc(sizeof(struct sys_sem));
+  if (sem != NULL) {
+    sem->c = count;
+    pthread_cond_init(&(sem->cond), NULL);
+    pthread_mutex_init(&(sem->mutex), NULL);
+  }
+  return sem;
+}
+/*-----------------------------------------------------------------------------------*/
+err_t
+sys_sem_new(struct sys_sem **sem, u8_t count)
+{
+  //SYS_STATS_INC_USED(sem);
+  *sem = sys_sem_new_internal(count);
+  if (*sem == NULL) {
+    return ERR_MEM;
+  }
+  return ERR_OK;
+}
+/*-----------------------------------------------------------------------------------*/
+static u32_t
+cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex, u32_t timeout)
+{
+  time_t tdiff;
+  time_t sec, usec;
+  struct timeval rtime1, rtime2;
+  struct timespec ts;
+  int retval;
+
+  if (timeout > 0) {
+    /* Get a timestamp and add the timeout value. */
+    gettimeofday(&rtime1, NULL);
+    sec = rtime1.tv_sec;
+    usec = rtime1.tv_usec;
+    usec += timeout % 1000 * 1000;
+    sec += (int)(timeout / 1000) + (int)(usec / 1000000);
+    usec = usec % 1000000;
+    ts.tv_nsec = usec * 1000;
+    ts.tv_sec = sec;
+
+    retval = pthread_cond_timedwait(cond, mutex, &ts);
+
+    if (retval == ETIMEDOUT) {
+      return SYS_ARCH_TIMEOUT;
+    } else {
+      /* Calculate for how long we waited for the cond. */
+      gettimeofday(&rtime2, NULL);
+      tdiff = (rtime2.tv_sec - rtime1.tv_sec) * 1000 +
+        (rtime2.tv_usec - rtime1.tv_usec) / 1000;
+
+      if (tdiff <= 0) {
+        return 0;
+      }
+      return (u32_t)tdiff;
+    }
+  } else {
+    pthread_cond_wait(cond, mutex);
+    return 0;
+  }
+}
+/*-----------------------------------------------------------------------------------*/
+u32_t
+sys_arch_sem_wait(struct sys_sem **s, u32_t timeout)
+{
+  u32_t time_needed = 0;
+  struct sys_sem *sem;
+  LWIP_ASSERT("invalid sem", (s != NULL) && (*s != NULL));
+  sem = *s;
+
+  pthread_mutex_lock(&(sem->mutex));
+  while (sem->c <= 0) {
+    if (timeout > 0) {
+      time_needed = cond_wait(&(sem->cond), &(sem->mutex), timeout);
+
+      if (time_needed == SYS_ARCH_TIMEOUT) {
+        pthread_mutex_unlock(&(sem->mutex));
+        return SYS_ARCH_TIMEOUT;
+      }
+      /*      pthread_mutex_unlock(&(sem->mutex));
+              return time_needed; */
+    } else {
+      cond_wait(&(sem->cond), &(sem->mutex), 0);
+    }
+  }
+  sem->c--;
+  pthread_mutex_unlock(&(sem->mutex));
+  return (u32_t)time_needed;
+}
+/*-----------------------------------------------------------------------------------*/
+void
+sys_sem_signal(struct sys_sem **s)
+{
+  struct sys_sem *sem;
+  LWIP_ASSERT("invalid sem", (s != NULL) && (*s != NULL));
+  sem = *s;
+
+  pthread_mutex_lock(&(sem->mutex));
+  sem->c++;
+
+  if (sem->c > 1) {
+    sem->c = 1;
+  }
+
+  pthread_cond_broadcast(&(sem->cond));
+  pthread_mutex_unlock(&(sem->mutex));
+}
+/*-----------------------------------------------------------------------------------*/
+static void
+sys_sem_free_internal(struct sys_sem *sem)
+{
+  pthread_cond_destroy(&(sem->cond));
+  pthread_mutex_destroy(&(sem->mutex));
+  free(sem);
+}
+/*-----------------------------------------------------------------------------------*/
+void
+sys_sem_free(struct sys_sem **sem)
+{
+  if ((sem != NULL) && (*sem != NULL)) {
+    //SYS_STATS_DEC(sem.used);
+    sys_sem_free_internal(*sem);
+  }
+}
+
