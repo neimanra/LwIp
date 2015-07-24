@@ -29,7 +29,7 @@
 # Author: Adam Dunkels <adam@sics.se>
 #
 
-CONTRIBDIR=/home/rami/Teridion
+CONTRIBDIR=/home/rami/Teridion/LwIp
 LWIPARCH=$(CONTRIBDIR)/proj
 DPDKDIR=$(CONTRIBDIR)/dpdk
 
@@ -88,7 +88,7 @@ depend dep: .depend
 include .depend
 
 echop: $(LWIPOBJS) unixlib.o
-	$(CC) -g  -o echop $^ -lpthread -Urte_enic_driver -L/home/rami/Teridion/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
+	$(CC) -g  -o echop $^ -lpthread -Urte_enic_driver -L/home/rami/Teridion/LwIp/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
 #$@ $^
 
 .depend: src/app/unixlib.c $(LWIPFILES)

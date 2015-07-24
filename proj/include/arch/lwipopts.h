@@ -126,7 +126,7 @@
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_SEG                64//16
+#define MEMP_NUM_TCP_SEG                128//16
 
 /**
  * MEMP_NUM_REASSDATA: the number of simultaneously IP packets queued for
@@ -174,13 +174,13 @@
  */
 #define MEMP_NUM_TCPIP_MSG_INPKT        8
 
-#define DEFAULT_TCP_RECVMBOX_SIZE 32
+#define DEFAULT_TCP_RECVMBOX_SIZE 64
 #define DEFAULT_ACCEPTMBOX_SIZE         32
 #define TCPIP_MBOX_SIZE 32
 /**
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool. 
  */
-#define PBUF_POOL_SIZE                  128
+#define PBUF_POOL_SIZE                  256
 
 /*
    ---------------------------------

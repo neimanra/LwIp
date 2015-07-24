@@ -48,6 +48,7 @@
 #include "lwip/init.h"
 #include "netif/etharp.h"
 #include "netif/ppp_oe.h"
+#include "dpdkif.h"
 
 /* global variables */
 static tcpip_init_done_fn tcpip_init_done;
@@ -195,6 +196,124 @@ tcpip_input(struct pbuf *p, struct netif *inp)
   return ERR_OK;
 #endif /* LWIP_TCPIP_CORE_LOCKING_INPUT */
 }
+
+
+//TODO
+err_t RN_fetch_network_packet(struct tcpip_msg ** msg)
+{
+    struct netif * inp;
+    struct pbuf * p = dpdkif_fetch_pkt(&inp);
+
+    if (NULL != p) 
+    {
+        *msg = (struct tcpip_msg *)memp_malloc(MEMP_TCPIP_MSG_INPKT);
+        (*msg)->type = TCPIP_MSG_INPKT;
+        (*msg)->msg.inp.p = p;
+        (*msg)->msg.inp.netif = inp;
+        return ERR_OK;
+    }
+
+    return ERR_MEM;
+}
+
+
+/**
+ * The main lwIP thread. This thread has exclusive access to lwIP core functions
+ * (unless access to them is not locked). Other threads communicate with this
+ * thread using message boxes.
+ *
+ * It also starts all the timers to make sure they are running in the right
+ * thread context.
+ *
+ * @param arg unused argument
+ */
+static void
+RN_tcpip_thread(void *arg)
+{
+  struct tcpip_msg *msg;
+  LWIP_UNUSED_ARG(arg);
+
+  if (tcpip_init_done != NULL) {
+    tcpip_init_done(tcpip_init_done_arg);
+  }
+
+  LOCK_TCPIP_CORE();
+  while (1) {  
+      msg = NULL;                        /* MAIN Loop */
+    UNLOCK_TCPIP_CORE();
+    LWIP_TCPIP_THREAD_ALIVE();
+    /* wait for a message, timeouts are processed while waiting */
+    //sys_timeouts_mbox_fetch(&mbox, (void **)&msg);
+    if(sys_arch_mbox_tryfetch(&mbox, &msg) == SYS_MBOX_EMPTY)
+    {
+        RN_fetch_network_packet(&msg);
+    }
+
+
+    LOCK_TCPIP_CORE();
+    if (NULL != msg) 
+    switch (msg->type) {
+#if LWIP_NETCONN
+    case TCPIP_MSG_API:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: API message %p\n", (void *)msg));
+      msg->msg.apimsg->function(&(msg->msg.apimsg->msg));
+      break;
+#endif /* LWIP_NETCONN */
+
+#if !LWIP_TCPIP_CORE_LOCKING_INPUT
+    case TCPIP_MSG_INPKT:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: PACKET %p\n", (void *)msg));
+#if LWIP_ETHERNET
+      if (msg->msg.inp.netif->flags & (NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET)) {
+        ethernet_input(msg->msg.inp.p, msg->msg.inp.netif);
+      } else
+#endif /* LWIP_ETHERNET */
+      {
+        ip_input(msg->msg.inp.p, msg->msg.inp.netif);
+      }
+      memp_free(MEMP_TCPIP_MSG_INPKT, msg);
+      break;
+#endif /* LWIP_TCPIP_CORE_LOCKING_INPUT */
+
+#if LWIP_NETIF_API
+    case TCPIP_MSG_NETIFAPI:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: Netif API message %p\n", (void *)msg));
+      msg->msg.netifapimsg->function(&(msg->msg.netifapimsg->msg));
+      break;
+#endif /* LWIP_NETIF_API */
+
+#if LWIP_TCPIP_TIMEOUT
+    case TCPIP_MSG_TIMEOUT:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: TIMEOUT %p\n", (void *)msg));
+      sys_timeout(msg->msg.tmo.msecs, msg->msg.tmo.h, msg->msg.tmo.arg);
+      memp_free(MEMP_TCPIP_MSG_API, msg);
+      break;
+    case TCPIP_MSG_UNTIMEOUT:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: UNTIMEOUT %p\n", (void *)msg));
+      sys_untimeout(msg->msg.tmo.h, msg->msg.tmo.arg);
+      memp_free(MEMP_TCPIP_MSG_API, msg);
+      break;
+#endif /* LWIP_TCPIP_TIMEOUT */
+
+    case TCPIP_MSG_CALLBACK:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: CALLBACK %p\n", (void *)msg));
+      msg->msg.cb.function(msg->msg.cb.ctx);
+      memp_free(MEMP_TCPIP_MSG_API, msg);
+      break;
+
+    case TCPIP_MSG_CALLBACK_STATIC:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: CALLBACK_STATIC %p\n", (void *)msg));
+      msg->msg.cb.function(msg->msg.cb.ctx);
+      break;
+
+    default:
+      LWIP_DEBUGF(TCPIP_DEBUG, ("tcpip_thread: invalid message: %d\n", msg->type));
+      LWIP_ASSERT("tcpip_thread: invalid message", 0);
+      break;
+    }
+  }
+}
+
 
 /**
  * Call a specific function in the thread context of
@@ -467,7 +586,7 @@ tcpip_init(tcpip_init_done_fn initfunc, void *arg)
   }
 #endif /* LWIP_TCPIP_CORE_LOCKING */
 
-  sys_thread_new(TCPIP_THREAD_NAME, tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
+  sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
 }
 
 /**

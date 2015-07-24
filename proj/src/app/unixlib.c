@@ -96,7 +96,7 @@ int main()
   }
   tcpip_init(tcpip_init_done, &sem);
 
-  rte_eal_mp_remote_launch ((lcore_function_t *)dpdkif_rx_thread_func, NULL, SKIP_MASTER);
+ // rte_eal_mp_remote_launch ((lcore_function_t *)dpdkif_rx_thread_func, NULL, SKIP_MASTER);
 
   sys_sem_wait(&sem);
   sys_sem_free(&sem);

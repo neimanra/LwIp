@@ -17,7 +17,7 @@
 #include "lwip/sys.h"
 #include "lwip/arch.h"
 #include "netif/etharp.h"
-
+#include "dpdkif.h"
 
 /* Compare 2 16bit aligned MAC addresses */
 #define CMP_MAC_ADDR(MAC1, MAC2) \ 
@@ -28,6 +28,8 @@
 #define IFNAME0 'D' /* Stands for "DPDK" */
 #define IFNAME1 'I' /* Stands for "Interface" */
 #define DPDK_MAX_RX_BURST (32)
+#define DPDKIF_MBUF_PBUF_OFFSET (RTE_PKTMBUF_HEADROOM - sizeof(struct pbuf))
+
 
 struct dpdkif 
 {
@@ -37,10 +39,51 @@ struct dpdkif
 extern struct rte_mempool * dpdk_pktmbuf_pool;
 static struct netif * port2netif_map[RTE_MAX_ETHPORTS] = {NULL};
 
+static inline
+struct pbuf * 
+sys_arch_mbuf_to_pbuf(struct rte_mbuf  * mbuf)
+{
+    return  (struct pbuf*)(((u8_t*)mbuf) + DPDKIF_MBUF_PBUF_OFFSET);
+}
+
+static inline
+struct rte_mbuf * 
+sys_arch_pbuf_to_mbuf(struct pbuf  * pbuf)
+{
+    return  (struct rte_mbuf*)(((u8_t*)pbuf) - DPDKIF_MBUF_PBUF_OFFSET);
+}
 
 static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
+    u8_t * pkt_ptr;
+    struct pbuf * q = p;
+    struct rte_mbuf * mbuf = sys_arch_pbuf_to_mbuf(p);
+   
+    mbuf->data_off = p->payload - mbuf->buf_addr;
+    mbuf->data_len = p->tot_len;
+    //pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
+pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
+    if (*(u32_t *)pkt_ptr == 0) 
+    {
+        int i = 0;
+        i++;
+    }
+
+
+    //rte_pktmbuf_append(mbuf, p->tot_len);
+
+    if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 /*TODO*/, &mbuf, 1))
+    {
+        return ERR_OK;
+    }
+
+    else
+    {
+        rte_pktmbuf_free(mbuf);
+        return ERR_IF;
+    }
+    /*
     u8_t * pkt_ptr;
     struct pbuf * q = p;
     struct rte_mbuf * mbuf = rte_pktmbuf_alloc(dpdk_pktmbuf_pool);
@@ -60,7 +103,7 @@ low_level_output(struct netif *netif, struct pbuf *p)
 
     rte_pktmbuf_append(mbuf, p->tot_len);
 
-    if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 /*TODO*/, &mbuf, 1))
+    if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 , &mbuf, 1))
     {
         return ERR_OK;
     }
@@ -70,6 +113,7 @@ low_level_output(struct netif *netif, struct pbuf *p)
         rte_pktmbuf_free(mbuf);
         return ERR_IF;
     }
+    */
 }
 
 
@@ -233,4 +277,62 @@ dpdkif_rx_thread_func(void * arg)
     }
 
     return 0;
+}
+
+
+struct pbuf *
+dpdkif_fetch_pkt(struct netif ** inp)
+{
+    struct netif * netif;
+    struct rte_mbuf * rx_mbuf_arr;
+    struct pbuf *p, *q;
+    u8_t * pkt_ptr, pktid;
+    u16_t len;
+
+
+
+    if (1 == rte_eth_rx_burst(0, 0, &rx_mbuf_arr, 1)) 
+    {
+        pkt_ptr = rte_pktmbuf_mtod(rx_mbuf_arr, u8_t *);
+        len = rte_pktmbuf_pkt_len(rx_mbuf_arr);
+        //p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+
+        p = sys_arch_mbuf_to_pbuf(rx_mbuf_arr);
+
+        p->tot_len = len;
+        /* set the length of the first pbuf in the chain */
+        p->len = len;
+
+        /* set reference count (needed here in case we fail) */
+        p->ref = 1;
+        p->type = PBUF_POOL;
+        p->next = NULL;
+
+        /* make the payload pointer point 'offset' bytes into pbuf data memory */
+        p->payload = rte_pktmbuf_mtod(rx_mbuf_arr, void *);//LWIP_MEM_ALIGN((void *)((u8_t *)p + (LWIP_MEM_ALIGN_SIZE(sizeof(struct pbuf)))));
+
+/*
+        if (NULL != p) 
+        {
+            for(q = p; q != NULL; q = q->next) 
+            {
+                rte_memcpy(q->payload, pkt_ptr, q->len);
+                pkt_ptr += q->len;
+            }
+        }
+
+        else
+        {
+            return NULL;
+        }
+
+        rte_mempool_put_bulk(dpdk_pktmbuf_pool, &rx_mbuf_arr, 1);
+*/
+        *inp = port2netif_map[0];
+
+        return p;
+    }
+
+
+    return NULL;
 }
