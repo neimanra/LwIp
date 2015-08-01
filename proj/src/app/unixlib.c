@@ -109,6 +109,9 @@ int main()
   /* Create a new connection identifier. */
   conn = netconn_new(NETCONN_TCP);
 
+netconn_set_noautorecved(conn, 0);
+  tcp_nagle_disable(conn->pcb.tcp);
+
   /* Bind connection to well known port number 7. */
   netconn_bind(conn, NULL, 80);
 
@@ -127,10 +130,13 @@ int main()
       u16_t len;
       
       while ((err = netconn_recv(newconn, &buf)) == ERR_OK) {
+          LWIP_PLATFORM_DIAG(("Rcvd!\n"));
         //printf("Recved\n");
         do {
              netbuf_data(buf, &data, &len);
+             
              err = netconn_write(newconn, data, len, NETCONN_COPY);
+             
 #if 0
             if (err != ERR_OK) {
               printf("tcpecho: netconn_write: error \"%s\"\n", lwip_strerr(err));

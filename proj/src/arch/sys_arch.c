@@ -332,7 +332,7 @@ void sys_mbox_post(sys_mbox_t *mbox, void *msg)
 
    while (0 != res) 
    {
-      rte_delay_us(US_SLEEP_VAL);
+      //rte_delay_us(US_SLEEP_VAL);
       res = rte_ring_enqueue( (*mbox)->ring, msg);
    }
 }
@@ -358,7 +358,7 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
       {
          if(0 != rte_ring_dequeue(imbox->ring, msg))
          {
-            rte_delay_us(US_SLEEP_VAL);
+            //rte_delay_us(US_SLEEP_VAL);
             curr_ticks = rte_get_timer_cycles();
          }
 
@@ -377,7 +377,7 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
       {
          if(0 != rte_ring_dequeue(imbox->ring, msg))
          {
-            rte_delay_us(US_SLEEP_VAL);
+            //rte_delay_us(US_SLEEP_VAL);
          }
 
          else

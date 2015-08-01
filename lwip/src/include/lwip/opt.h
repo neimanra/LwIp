@@ -920,7 +920,7 @@
  * (2 * TCP_MSS) for things to work well
  */
 #ifndef TCP_WND
-#define TCP_WND                         (4 * TCP_MSS)
+#define TCP_WND                         (16 * TCP_MSS)
 #endif 
 
 /**
@@ -953,7 +953,7 @@
  * an upper limit on the MSS advertised by the remote host.
  */
 #ifndef TCP_MSS
-#define TCP_MSS                         1200//536
+#define TCP_MSS                         1400//536
 #endif
 
 /**
@@ -974,7 +974,7 @@
  * To achieve good performance, this should be at least 2 * TCP_MSS.
  */
 #ifndef TCP_SND_BUF
-#define TCP_SND_BUF                     (2 * TCP_MSS)
+#define TCP_SND_BUF                     (16 * TCP_MSS)
 #endif
 
 /**
@@ -982,7 +982,7 @@
  * as much as (2 * TCP_SND_BUF/TCP_MSS) for things to work.
  */
 #ifndef TCP_SND_QUEUELEN
-#define TCP_SND_QUEUELEN                ((4 * (TCP_SND_BUF) + (TCP_MSS - 1))/(TCP_MSS))
+#define TCP_SND_QUEUELEN                (2 * TCP_SND_BUF/TCP_MSS)//16//((4 * (TCP_SND_BUF) + (TCP_MSS - 1))/(TCP_MSS))
 #endif
 
 /**
@@ -1888,7 +1888,7 @@
  * debug messages of certain types.
  */
 #ifndef LWIP_DBG_TYPES_ON
-#define LWIP_DBG_TYPES_ON               LWIP_DBG_ON
+#define LWIP_DBG_TYPES_ON               LWIP_DBG_OFF
 #endif
 
 /**

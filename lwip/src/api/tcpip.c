@@ -249,7 +249,6 @@ RN_tcpip_thread(void *arg)
         RN_fetch_network_packet(&msg);
     }
 
-
     LOCK_TCPIP_CORE();
     if (NULL != msg) 
     switch (msg->type) {
@@ -585,6 +584,21 @@ tcpip_init(tcpip_init_done_fn initfunc, void *arg)
     LWIP_ASSERT("failed to create lock_tcpip_core", 0);
   }
 #endif /* LWIP_TCPIP_CORE_LOCKING */
+
+
+  LWIP_PLATFORM_DIAG(("TCP PARAMS:\n"\
+                      "TCP_WND:%u\n"\
+                      "TCP_MAXRTX:%u\n"\
+                      "TCP_SYNMAXRTX%u\n"\
+                      "TCP_QUEUE_OOSEQ:%u\n"\
+                      "TCP_MSS:%u\n"\
+                      "TCP_CALCULATE_EFF_SEND_MSS:%u\n"\
+                      "TCP_SND_BUF:%u\n"\
+                      "TCP_SND_QUEUELEN:%u\n"\
+                      "TCP_SNDLOWAT:%u\n"\
+                      "TCP_SNDQUEUELOWAT:%u\n"\
+                      "TCP_WND_UPDATE_THRESHOLD:%u\n"\
+                      ,TCP_WND,TCP_MAXRTX,TCP_SYNMAXRTX,TCP_QUEUE_OOSEQ,TCP_MSS,TCP_CALCULATE_EFF_SEND_MSS,TCP_SND_BUF,TCP_SND_QUEUELEN,TCP_SNDLOWAT,TCP_SNDQUEUELOWAT,TCP_WND_UPDATE_THRESHOLD));
 
   sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
 }

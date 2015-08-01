@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <rte_cycles.h>
 
 #ifndef BYTE_ORDER
 #define BYTE_ORDER  LITTLE_ENDIAN
@@ -42,7 +43,7 @@ typedef uintptr_t   mem_ptr_t;
 
 
 /* Plaform specific diagnostic output */
-#define LWIP_PLATFORM_DIAG(x)	do {printf x;} while(0)
+#define LWIP_PLATFORM_DIAG(x)	do {printf("%llu:",rte_get_timer_cycles());printf x;} while(0)
 
 #define LWIP_PLATFORM_ASSERT(x) do {printf("Assertion \"%s\" failed at line %d in %s\n", \
                                      x, __LINE__, __FILE__); fflush(NULL); abort();} while(0)
