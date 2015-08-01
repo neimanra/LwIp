@@ -103,8 +103,9 @@ int main(int argc , char *argv[])
     uint64_t  end = get_tsc() + eal_tsc_resolution_hz;
 
     //Receive a message from client
-    while( (read_size = recv(client_sock , client_message , 2000 , MSG_DONTWAIT )) > 0 )
+    while( 1 )
     {
+        read_size = recv(client_sock , client_message , 2000 , MSG_DONTWAIT );
         if (read_size > 0) 
         {
             total_rcvd += read_size;
