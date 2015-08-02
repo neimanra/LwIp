@@ -40,7 +40,7 @@ LWIPDIR=$(CONTRIBDIR)/lwip/src
 
 CCDEP=gcc
 CC=gcc
-CFLAGS=-g -O0 -Wall -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
+CFLAGS=-g -O3 -Wall -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
 
 CFLAGS:=$(CFLAGS) \
 	-march=native -I$(LWIPDIR)/include -I$(LWIPARCH)/include -I$(LWIPARCH)/include/arch -I$(LWIPARCH)/include/netif -I$(LWIPDIR)/include/ipv4 \
@@ -65,7 +65,7 @@ APIFILES=$(LWIPDIR)/api/api_lib.c $(LWIPDIR)/api/api_msg.c $(LWIPDIR)/api/tcpip.
 NETIFFILES=$(LWIPDIR)/netif/etharp.c
 
 # ARCHFILES: Architecture specific files.
-ARCHFILES=$(wildcard $(LWIPARCH)/*.c $(LWIPARCH)/src/arch/*.c $(LWIPARCH)/src/netif/*.c $(LWIPARCH)/netif/tapif.c $(LWIPARCH)/netif/tunif.c $(LWIPARCH)/netif/unixif.c $(LWIPARCH)/netif/list.c $(LWIPARCH)/netif/tcpdump.c)
+ARCHFILES=$(wildcard $(LWIPARCH)/*.c $(LWIPARCH)/src/arch/*.c $(LWIPARCH)/src/netif/*.c $(LWIPARCH)/netif/tapif.c $(LWIPARCH)/netif/tunif.c $(LWIPARCH)/netif/recv_server.c $(LWIPARCH)/netif/list.c $(LWIPARCH)/netif/tcpdump.c)
 
 # LWIPFILES: All the above.
 LWIPFILES=$(COREFILES) $(CORE4FILES) $(APIFILES) $(NETIFFILES) $(ARCHFILES)

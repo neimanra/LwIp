@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2001-2003 Swedish Institute of Computer Science.
  * All rights reserved. 
@@ -55,6 +56,7 @@
 #include "lwip/api.h"
 
 #include <rte_launch.h>
+#include <rte_cycles.h>
 #include "dpdkif.h"
 
 struct netif netif;
@@ -128,21 +130,31 @@ int main()
       struct netbuf *buf;
       void *data;
       u16_t len;
-      
+      uint64_t total_rcvd = 0;
+      uint64_t eal_tsc_resolution_hz = rte_get_timer_hz();
+      uint64_t  end = get_tsc() + eal_tsc_resolution_hz;
+
       while ((err = netconn_recv(newconn, &buf)) == ERR_OK) {
-          LWIP_PLATFORM_DIAG(("Rcvd!\n"));
+          
         //printf("Recved\n");
-        do {
+        //do {
              netbuf_data(buf, &data, &len);
+
+             if (len > 0) 
+             {
+    			printf("%llu \n", total_rcvd);
+    			total_rcvd = 0;
+    			end = get_tsc() + eal_tsc_resolution_hz;
+             }
              
-             err = netconn_write(newconn, data, len, NETCONN_COPY);
+             //err = netconn_write(newconn, data, len, NETCONN_COPY);
              
 #if 0
             if (err != ERR_OK) {
               printf("tcpecho: netconn_write: error \"%s\"\n", lwip_strerr(err));
             }
 #endif
-        } while (netbuf_next(buf) >= 0);
+        //} while (netbuf_next(buf) >= 0);
         netbuf_delete(buf);
       }
       /*printf("Got EOF, looping\n");*/ 
