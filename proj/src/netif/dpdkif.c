@@ -311,23 +311,6 @@ dpdkif_fetch_pkt(struct netif ** inp)
         /* make the payload pointer point 'offset' bytes into pbuf data memory */
         p->payload = rte_pktmbuf_mtod(rx_mbuf_arr, void *);//LWIP_MEM_ALIGN((void *)((u8_t *)p + (LWIP_MEM_ALIGN_SIZE(sizeof(struct pbuf)))));
 
-/*
-        if (NULL != p) 
-        {
-            for(q = p; q != NULL; q = q->next) 
-            {
-                rte_memcpy(q->payload, pkt_ptr, q->len);
-                pkt_ptr += q->len;
-            }
-        }
-
-        else
-        {
-            return NULL;
-        }
-
-        rte_mempool_put_bulk(dpdk_pktmbuf_pool, &rx_mbuf_arr, 1);
-*/
         *inp = port2netif_map[0];
 
         return p;
@@ -335,4 +318,98 @@ dpdkif_fetch_pkt(struct netif ** inp)
 
 
     return NULL;
+}
+
+int dpdkif_get_if_params(ip_addr_t* ipaddr, ip_addr_t* netmask, ip_addr_t* gateway, uint8_t * hw_addr)
+{
+	FILE * fd = fopen("proj/conf/config", "r");
+	s8_t * conf_string = malloc(100);
+	size_t string_len;
+	s8_t bytes_read, values_parsed;
+	u8_t ip_arr[4];
+
+	if(NULL == fd)
+	{
+		rte_exit(-1,"Failed to open config file!\n");
+	}
+
+	/* Read first line */
+	bytes_read = getline(&conf_string, &string_len, fd);
+
+	if(-1 == bytes_read)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot read config file!\n");
+	}
+
+	values_parsed = sscanf(conf_string,"%hhu.%hhu.%hhu.%hhu", &ip_arr[0],&ip_arr[1],&ip_arr[2],&ip_arr[3]);
+
+	if(4 != values_parsed)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot parse config values!\n");
+	}
+
+	IP4_ADDR(ipaddr, ip_arr[0], ip_arr[1], ip_arr[2], ip_arr[3]);
+
+	//Read second line
+	bytes_read = getline(&conf_string, &string_len, fd);
+
+	if(-1 == bytes_read)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot read config file!\n");
+	}
+
+	values_parsed = sscanf(conf_string,"%hhu.%hhu.%hhu.%hhu", &ip_arr[0],&ip_arr[1],&ip_arr[2],&ip_arr[3]);
+
+	if(4 != values_parsed)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot parse config values!\n");
+	}
+
+	IP4_ADDR(gateway, ip_arr[0], ip_arr[1], ip_arr[2], ip_arr[3]);
+
+	//Read third line
+	bytes_read = getline(&conf_string, &string_len, fd);
+
+	if(-1 == bytes_read)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot read config file!\n");
+	}
+
+	values_parsed = sscanf(conf_string,"%hhu.%hhu.%hhu.%hhu", &ip_arr[0],&ip_arr[1],&ip_arr[2],&ip_arr[3]);
+
+	if(4 != values_parsed)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot parse config values!\n");
+	}
+
+	IP4_ADDR(netmask, ip_arr[0], ip_arr[1], ip_arr[2], ip_arr[3]);
+
+
+	//Read hw address
+	bytes_read = getline(&conf_string, &string_len, fd);
+
+	if(-1 == bytes_read)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot read config file!\n");
+	}
+
+	values_parsed = sscanf(conf_string,"%hhx:%hhx:%hhx:%hhx:%hhx:%hhx", &hw_addr[0],&hw_addr[1],&hw_addr[2],&hw_addr[3],&hw_addr[4], &hw_addr[5]);
+
+	if(6 != values_parsed)
+	{
+		fclose(fd);
+		rte_exit(-1,"Cannot parse config values!\n");
+	}
+
+	fclose(fd);
+	free(conf_string);
+
+	return 0;
 }

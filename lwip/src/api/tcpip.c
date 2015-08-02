@@ -600,7 +600,8 @@ tcpip_init(tcpip_init_done_fn initfunc, void *arg)
                       "TCP_WND_UPDATE_THRESHOLD:%u\n"\
                       ,TCP_WND,TCP_MAXRTX,TCP_SYNMAXRTX,TCP_QUEUE_OOSEQ,TCP_MSS,TCP_CALCULATE_EFF_SEND_MSS,TCP_SND_BUF,TCP_SND_QUEUELEN,TCP_SNDLOWAT,TCP_SNDQUEUELOWAT,TCP_WND_UPDATE_THRESHOLD));
 
-  sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
+  //sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
+  rte_eal_remote_launch (RN_tcpip_thread, NULL,1);
 }
 
 /**

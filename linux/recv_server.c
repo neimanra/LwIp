@@ -72,7 +72,7 @@ int main(int argc , char *argv[])
      
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = inet_addr("10.132.251.197");
+    server.sin_addr.s_addr = inet_addr("192.168.56.101");
     server.sin_port = htons( 80 );
      
     //Bind

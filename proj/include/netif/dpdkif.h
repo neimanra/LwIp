@@ -10,4 +10,6 @@ dpdkif_rx_thread_func(void * arg);
 
 struct pbuf *
 dpdkif_fetch_pkt(struct netif ** inp);
+
+int dpdkif_get_if_params(ip_addr_t* ipaddr, ip_addr_t* netmask, ip_addr_t* gateway, uint8_t * hw_addr);
 #endif

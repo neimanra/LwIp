@@ -69,15 +69,17 @@ tcpip_init_done(void *arg)
   sys_sem_t *sem;
   sem = arg;
 
-  netif.hwaddr[0] = 0x8;
-  netif.hwaddr[1] = 0x0;
-  netif.hwaddr[2] = 0x27;
-  netif.hwaddr[3] = 0xd5;
-  netif.hwaddr[4] = 0x3;
-  netif.hwaddr[5] = 0xf4;
-  IP4_ADDR(&gateway, 192,168,56,1);
-  IP4_ADDR(&ipaddr, 192,168,56,101);
-  IP4_ADDR(&netmask, 255,255,255,0);
+  dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
+
+//  netif.hwaddr[0] = 0x8;
+//  netif.hwaddr[1] = 0x0;
+//  netif.hwaddr[2] = 0x27;
+//  netif.hwaddr[3] = 0xd5;
+//  netif.hwaddr[4] = 0x3;
+//  netif.hwaddr[5] = 0xf4;
+//  IP4_ADDR(&gateway, 192,168,56,1);
+//  IP4_ADDR(&ipaddr, 192,168,56,101);
+//  IP4_ADDR(&netmask, 255,255,255,0);
   
   netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init,
 			      tcpip_input/*ethernet_input*/));
@@ -132,7 +134,7 @@ int main()
       u16_t len;
       uint64_t total_rcvd = 0;
       uint64_t eal_tsc_resolution_hz = rte_get_timer_hz();
-      uint64_t  end = get_tsc() + eal_tsc_resolution_hz;
+      uint64_t  end = rte_get_timer_cycles() + eal_tsc_resolution_hz;
 
       while ((err = netconn_recv(newconn, &buf)) == ERR_OK) {
           
@@ -142,11 +144,16 @@ int main()
 
              if (len > 0) 
              {
-    			printf("%llu \n", total_rcvd);
-    			total_rcvd = 0;
-    			end = get_tsc() + eal_tsc_resolution_hz;
+                 total_rcvd += len;
+                 //printf("len: %llu \n", total_rcvd);
              }
              
+             if (rte_get_timer_cycles() >= end) 
+             {
+                    printf("%u \n", total_rcvd);
+                    total_rcvd = 0;
+                    end = rte_get_timer_cycles() + eal_tsc_resolution_hz;
+             }
              //err = netconn_write(newconn, data, len, NETCONN_COPY);
              
 #if 0
