@@ -65,7 +65,7 @@ APIFILES=$(LWIPDIR)/api/api_lib.c $(LWIPDIR)/api/api_msg.c $(LWIPDIR)/api/tcpip.
 NETIFFILES=$(LWIPDIR)/netif/etharp.c
 
 # ARCHFILES: Architecture specific files.
-ARCHFILES=$(wildcard $(LWIPARCH)/*.c $(LWIPARCH)/src/arch/*.c $(LWIPARCH)/src/netif/*.c $(LWIPARCH)/netif/tapif.c $(LWIPARCH)/netif/tunif.c $(LWIPARCH)/netif/recv_server.c $(LWIPARCH)/netif/list.c $(LWIPARCH)/netif/tcpdump.c)
+ARCHFILES=$(wildcard $(LWIPARCH)/*.c $(LWIPARCH)/src/arch/*.c $(LWIPARCH)/src/netif/*.c $(LWIPARCH)/netif/tapif.c $(LWIPARCH)/netif/tunif.c $(LWIPARCH)/netif/unixif.c $(LWIPARCH)/netif/list.c $(LWIPARCH)/netif/tcpdump.c)
 
 # LWIPFILES: All the above.
 LWIPFILES=$(COREFILES) $(CORE4FILES) $(APIFILES) $(NETIFFILES) $(ARCHFILES)
@@ -87,9 +87,9 @@ depend dep: .depend
 
 include .depend
 
-echop: $(LWIPOBJS) unixlib.o
+echop: $(LWIPOBJS) recv_server.o
 	$(CC) -g  -o echop $^ -lpthread -Urte_enic_driver -L/home/rami/Teridion/LwIp/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
 #$@ $^
 
-.depend: src/app/unixlib.c $(LWIPFILES)
+.depend: src/app/recv_server.c $(LWIPFILES)
 	$(CCDEP) $(CFLAGS) -MM $^ > .depend || rm -f .depend
