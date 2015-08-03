@@ -20,7 +20,7 @@
 #include "dpdkif.h"
 
 /* Compare 2 16bit aligned MAC addresses */
-#define CMP_MAC_ADDR(MAC1, MAC2) \ 
+#define CMP_MAC_ADDR(MAC1, MAC2)\
 (((*MAC1) == (*MAC2)) && (*(MAC1 + 1) == *(MAC2 + 1)) && (*(MAC1 + 2) == *(MAC2 + 2)))
 
 #define ever (;;)
@@ -34,6 +34,9 @@
 struct dpdkif 
 {
     u8_t   portid;
+    u8_t   pktid;
+    u16_t   pkts_ready;
+    struct rte_mbuf * pkt_arr[DPDK_MAX_RX_BURST];
 };
 
 extern struct rte_mempool * dpdk_pktmbuf_pool;
@@ -57,21 +60,12 @@ static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
     u8_t * pkt_ptr;
-    struct pbuf * q = p;
     struct rte_mbuf * mbuf = sys_arch_pbuf_to_mbuf(p);
    
     mbuf->data_off = p->payload - mbuf->buf_addr;
     mbuf->data_len = p->tot_len;
-    //pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
-pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
-    if (*(u32_t *)pkt_ptr == 0) 
-    {
-        int i = 0;
-        i++;
-    }
+    pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
 
-
-    //rte_pktmbuf_append(mbuf, p->tot_len);
 
     if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 /*TODO*/, &mbuf, 1))
     {
@@ -83,37 +77,6 @@ pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
         rte_pktmbuf_free(mbuf);
         return ERR_IF;
     }
-    /*
-    u8_t * pkt_ptr;
-    struct pbuf * q = p;
-    struct rte_mbuf * mbuf = rte_pktmbuf_alloc(dpdk_pktmbuf_pool);
-    
-    if (NULL == mbuf) 
-    {
-        return ERR_MEM;
-    }
-
-    pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
-
-    for (q = p; NULL != q; q = q->next) 
-    {
-        rte_memcpy(pkt_ptr, q->payload, q->len);
-        pkt_ptr += q->len;
-    }
-
-    rte_pktmbuf_append(mbuf, p->tot_len);
-
-    if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 , &mbuf, 1))
-    {
-        return ERR_OK;
-    }
-
-    else
-    {
-        rte_pktmbuf_free(mbuf);
-        return ERR_IF;
-    }
-    */
 }
 
 
@@ -124,7 +87,6 @@ dpdkif_init(struct netif *netif)
     struct ether_addr port_eth_addr;
     struct dpdkif * dpdkif;
     u16_t * mac1p, * mac2p;
-    s32_t res;
 
     nb_ports = rte_eth_dev_count();
 
@@ -150,6 +112,8 @@ dpdkif_init(struct netif *netif)
         }
 
         dpdkif->portid = portid;
+        dpdkif->pktid = 0;
+        dpdkif->pkts_ready = 0;
 
         netif->state = dpdkif;
         netif->name[0] = IFNAME0;
@@ -283,36 +247,58 @@ dpdkif_rx_thread_func(void * arg)
 struct pbuf *
 dpdkif_fetch_pkt(struct netif ** inp)
 {
-    struct rte_mbuf * rx_mbuf_arr;
+    struct rte_mbuf * mbuf;
+    struct dpdkif * dpdkif;
     struct pbuf *p;
     u16_t len;
 
-    if (1 == rte_eth_rx_burst(0, 0, &rx_mbuf_arr, 1)) 
+    *inp = port2netif_map[0];
+    dpdkif = (*inp)->state;
+
+    //If we have cached packets - use them
+    if(dpdkif->pkts_ready)
     {
-        len = rte_pktmbuf_pkt_len(rx_mbuf_arr);
-        //p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
-
-        p = sys_arch_mbuf_to_pbuf(rx_mbuf_arr);
-
-        p->tot_len = len;
-        /* set the length of the first pbuf in the chain */
-        p->len = len;
-
-        /* set reference count (needed here in case we fail) */
-        p->ref = 1;
-        p->type = PBUF_POOL;
-        p->next = NULL;
-
-        /* make the payload pointer point 'offset' bytes into pbuf data memory */
-        p->payload = rte_pktmbuf_mtod(rx_mbuf_arr, void *);
-
-        *inp = port2netif_map[0];
-
-        return p;
+    	mbuf = dpdkif->pkt_arr[dpdkif->pktid];
+    	dpdkif->pktid++;
+    	dpdkif->pkts_ready--;
     }
 
+    //Poll driver otherwise
+    else
+    {
+    	dpdkif->pkts_ready = rte_eth_rx_burst(0, 0, dpdkif->pkt_arr, DPDK_MAX_RX_BURST);
 
-    return NULL;
+        if(dpdkif->pkts_ready)
+        {
+        	mbuf = dpdkif->pkt_arr[0];
+        	dpdkif->pktid = 1;
+        	dpdkif->pkts_ready--;
+        }
+
+        else
+        {
+        	return NULL;
+        }
+    }
+
+	len = rte_pktmbuf_pkt_len(mbuf);
+	//p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
+
+	p = sys_arch_mbuf_to_pbuf(mbuf);
+
+	p->tot_len = len;
+	/* set the length of the first pbuf in the chain */
+	p->len = len;
+
+	/* set reference count (needed here in case we fail) */
+	p->ref = 1;
+	p->type = PBUF_POOL;
+	p->next = NULL;
+
+	/* make the payload pointer point 'offset' bytes into pbuf data memory */
+	p->payload = rte_pktmbuf_mtod(mbuf, void *);
+
+	return p;
 }
 
 int dpdkif_get_if_params(ip_addr_t* ipaddr, ip_addr_t* netmask, ip_addr_t* gateway, uint8_t * hw_addr)
