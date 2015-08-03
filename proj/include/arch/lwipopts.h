@@ -81,7 +81,7 @@
  * MEM_SIZE: the size of the heap memory. If the application will send
  * a lot of data that needs to be copied, this should be set high.
  */
-#define MEM_SIZE                        1600
+#define MEM_SIZE                        16000
 
 /*
    ------------------------------------------------
@@ -95,7 +95,7 @@
  * If the application sends a lot of data out of ROM (or other static memory),
  * this should be set high.
  */
-#define MEMP_NUM_PBUF                   16
+#define MEMP_NUM_PBUF                   160
 
 /**
  * MEMP_NUM_RAW_PCB: Number of raw connection PCBs
@@ -172,7 +172,7 @@
  * for incoming packets. 
  * (only needed if you use tcpip.c)
  */
-#define MEMP_NUM_TCPIP_MSG_INPKT        8
+#define MEMP_NUM_TCPIP_MSG_INPKT        80
 
 #define DEFAULT_TCP_RECVMBOX_SIZE 64
 #define DEFAULT_ACCEPTMBOX_SIZE         32
@@ -181,6 +181,13 @@
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool. 
  */
 #define PBUF_POOL_SIZE                  256
+
+/*
+   ---------------------------------
+   --------- DEBUG options ---------
+   ---------------------------------
+*/
+#define LWIP_NOASSERT 					1
 
 /*
    ---------------------------------

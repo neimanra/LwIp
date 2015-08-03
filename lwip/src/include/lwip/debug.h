@@ -79,12 +79,12 @@
 /** print debug message only if debug message type is enabled...
  *  AND is of correct type AND is at least LWIP_DBG_LEVEL
  */
-#define LWIP_DEBUGF(debug, message) do { \
+#define LWIP_DEBUGF(debug, ...) do { \
                                if ( \
                                    ((debug) & LWIP_DBG_ON) && \
                                    ((debug) & LWIP_DBG_TYPES_ON) && \
                                    ((s16_t)((debug) & LWIP_DBG_MASK_LEVEL) >= LWIP_DBG_MIN_LEVEL)) { \
-                                 LWIP_PLATFORM_DIAG(message); \
+                                 LWIP_PLATFORM_DIAG(__VA_ARGS__); \
                                  if ((debug) & LWIP_DBG_HALT) { \
                                    while(1); \
                                  } \

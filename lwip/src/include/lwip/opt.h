@@ -920,7 +920,7 @@
  * (2 * TCP_MSS) for things to work well
  */
 #ifndef TCP_WND
-#define TCP_WND                         (16 * TCP_MSS)
+#define TCP_WND                         65535
 #endif 
 
 /**
@@ -953,7 +953,7 @@
  * an upper limit on the MSS advertised by the remote host.
  */
 #ifndef TCP_MSS
-#define TCP_MSS                         1400//536
+#define TCP_MSS                         1400
 #endif
 
 /**

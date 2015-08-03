@@ -283,17 +283,12 @@ dpdkif_rx_thread_func(void * arg)
 struct pbuf *
 dpdkif_fetch_pkt(struct netif ** inp)
 {
-    struct netif * netif;
     struct rte_mbuf * rx_mbuf_arr;
-    struct pbuf *p, *q;
-    u8_t * pkt_ptr, pktid;
+    struct pbuf *p;
     u16_t len;
-
-
 
     if (1 == rte_eth_rx_burst(0, 0, &rx_mbuf_arr, 1)) 
     {
-        pkt_ptr = rte_pktmbuf_mtod(rx_mbuf_arr, u8_t *);
         len = rte_pktmbuf_pkt_len(rx_mbuf_arr);
         //p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
 
@@ -309,7 +304,7 @@ dpdkif_fetch_pkt(struct netif ** inp)
         p->next = NULL;
 
         /* make the payload pointer point 'offset' bytes into pbuf data memory */
-        p->payload = rte_pktmbuf_mtod(rx_mbuf_arr, void *);//LWIP_MEM_ALIGN((void *)((u8_t *)p + (LWIP_MEM_ALIGN_SIZE(sizeof(struct pbuf)))));
+        p->payload = rte_pktmbuf_mtod(rx_mbuf_arr, void *);
 
         *inp = port2netif_map[0];
 

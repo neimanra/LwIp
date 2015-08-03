@@ -88,7 +88,8 @@ depend dep: .depend
 include .depend
 
 echop: $(LWIPOBJS) recv_server.o
-	$(CC) -g  -o echop $^ -lpthread -Urte_enic_driver -L/home/rami/Teridion/LwIp/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
+	$(CC) -g  -o echop $^ -lpthread -Urte_enic_driver -L$(CONTRIBDIR)/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
+	rm -f *.o
 #$@ $^
 
 .depend: src/app/recv_server.c $(LWIPFILES)

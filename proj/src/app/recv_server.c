@@ -70,19 +70,8 @@ tcpip_init_done(void *arg)
   sem = arg;
 
   dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
-
-//  netif.hwaddr[0] = 0x8;
-//  netif.hwaddr[1] = 0x0;
-//  netif.hwaddr[2] = 0x27;
-//  netif.hwaddr[3] = 0xd5;
-//  netif.hwaddr[4] = 0x3;
-//  netif.hwaddr[5] = 0xf4;
-//  IP4_ADDR(&gateway, 192,168,56,1);
-//  IP4_ADDR(&ipaddr, 192,168,56,101);
-//  IP4_ADDR(&netmask, 255,255,255,0);
   
-  netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init,
-			      tcpip_input/*ethernet_input*/));
+  netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init, tcpip_input));
 
   netif_set_up(&netif);
   sys_sem_signal(sem);
@@ -91,7 +80,6 @@ tcpip_init_done(void *arg)
 int main()
 {
   sys_sem_t sem;
-  ip_addr_t ipaddr, netmask, gateway;
 	
   sys_init();
 
@@ -99,8 +87,6 @@ int main()
     LWIP_ASSERT("failed to create semaphore", 0);
   }
   tcpip_init(tcpip_init_done, &sem);
-
- // rte_eal_mp_remote_launch ((lcore_function_t *)dpdkif_rx_thread_func, NULL, SKIP_MASTER);
 
   sys_sem_wait(&sem);
   sys_sem_free(&sem);
@@ -132,29 +118,25 @@ int main()
       struct netbuf *buf;
       void *data;
       u16_t len;
-      uint64_t total_rcvd = 0;
-      uint64_t eal_tsc_resolution_hz = rte_get_timer_hz();
-      uint64_t  end = rte_get_timer_cycles() + eal_tsc_resolution_hz;
+      u64_t total_rcvd = 0;
+      u64_t eal_tsc_resolution_hz = rte_get_timer_hz();
+      u64_t  end = rte_get_timer_cycles() + eal_tsc_resolution_hz;
 
       while ((err = netconn_recv(newconn, &buf)) == ERR_OK) {
           
-        //printf("Recved\n");
-        //do {
              netbuf_data(buf, &data, &len);
 
              if (len > 0) 
              {
                  total_rcvd += len;
-                 //printf("len: %llu \n", total_rcvd);
              }
              
              if (rte_get_timer_cycles() >= end) 
              {
-                    printf("%u \n", total_rcvd);
+                    printf("%llu \n", (unsigned long long)total_rcvd);
                     total_rcvd = 0;
                     end = rte_get_timer_cycles() + eal_tsc_resolution_hz;
              }
-             //err = netconn_write(newconn, data, len, NETCONN_COPY);
              
 #if 0
             if (err != ERR_OK) {
