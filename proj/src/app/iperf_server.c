@@ -46,7 +46,20 @@
 #include <unistd.h>
 #include "lwip/init.h"
 #include "lwip/sys.h"
-#include "rte_cycles.h"
+#include "lwip/mem.h"
+#include "lwip/memp.h"
+#include "lwip/pbuf.h"
+#include "lwip/tcp.h"
+#include "lwip/tcpip.h"
+#include "lwip/netif.h"
+#include "lwip/stats.h"
+//#include "lwip/sockets.h"
+#include "netif/etharp.h"
+#include "lwip/api.h"
+
+#include <rte_launch.h>
+#include <rte_cycles.h>
+#include "dpdkif.h"
 
 #ifndef IPERF_DEBUG
 #define IPERF_DEBUG LWIP_DBG_ON
@@ -294,7 +307,7 @@ int main()
 
     return 0;
 }
-
+struct netif netif;
 err_t iperf_server_init(void)
 {
     int i;
@@ -302,6 +315,16 @@ err_t iperf_server_init(void)
     sys_init();
     lwip_init();
     ticks_sec = rte_get_timer_hz();
+    ///////////////////////////////////////////
+    ip_addr_t ipaddr, netmask, gateway;
+    sys_sem_t *sem;
+
+    dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
+
+    netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init, tcpip_input));
+
+    netif_set_up(&netif);
+   ////////////////////////////////////////////
 
     for (i = 0; i < sizeof(send_data) / sizeof(*send_data); i++)
         send_data[i] = i;
