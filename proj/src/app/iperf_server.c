@@ -43,6 +43,8 @@
 #include <lwip/tcp.h>
 #include <lwip/debug.h>
 #include <stdint.h>
+#include <unistd.h>
+#include "lwip/init.h"
 #include "lwip/sys.h"
 #include "rte_cycles.h"
 
@@ -284,6 +286,13 @@ static err_t accept(void *arg, struct tcp_pcb *newpcb, err_t err)
 int main()
 {
     iperf_server_init();
+
+    while(1)
+    {
+    	sleep(1);
+    }
+
+    return 0;
 }
 
 err_t iperf_server_init(void)
@@ -291,6 +300,7 @@ err_t iperf_server_init(void)
     int i;
     err_t ret = ERR_OK;
     sys_init();
+    lwip_init();
     ticks_sec = rte_get_timer_hz();
 
     for (i = 0; i < sizeof(send_data) / sizeof(*send_data); i++)
