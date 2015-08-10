@@ -262,6 +262,8 @@ dpdkif_rx_thread_func(void * arg)
             pbuf_free(p);
             p = NULL;
         }
+
+    	sys_check_timeouts();
     }
 
     return 0;

@@ -125,7 +125,7 @@ struct pbuf_custom {
 #if LWIP_TCP && TCP_QUEUE_OOSEQ
 /** Define this to 0 to prevent freeing ooseq pbufs when the PBUF_POOL is empty */
 #ifndef PBUF_POOL_FREE_OOSEQ
-#define PBUF_POOL_FREE_OOSEQ 1
+#define PBUF_POOL_FREE_OOSEQ 0
 #endif /* PBUF_POOL_FREE_OOSEQ */
 #if NO_SYS && PBUF_POOL_FREE_OOSEQ
 extern volatile u8_t pbuf_free_ooseq_pending;

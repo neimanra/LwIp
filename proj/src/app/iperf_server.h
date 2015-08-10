@@ -45,7 +45,7 @@
 #include <lwip/err.h>
 
 #ifndef IPERF_SERVER_PORT
-#define IPERF_SERVER_PORT 5001
+#define IPERF_SERVER_PORT 5201
 #endif
 
 
