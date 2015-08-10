@@ -214,29 +214,53 @@ low_level_input(struct netif *netif, struct rte_mbuf ** rx_mbuf_arr, u16_t nb_rx
 }
 
 
+//int
+//dpdkif_rx_thread_func(void * arg)
+//{
+//    LWIP_UNUSED_ARG(arg);
+//
+//    struct netif * netif;
+//    struct rte_mbuf * rx_mbuf_arr[DPDK_MAX_RX_BURST];
+//    u8_t nb_ports = rte_eth_dev_count(), portid;
+//    u16_t nb_rx_pkts;
+//    u32_t core_id = rte_lcore_id();
+//
+//    for ever
+//    {
+//        for (portid = 0; portid < nb_ports; portid++)
+//        {
+//            nb_rx_pkts = rte_eth_rx_burst(portid, 0, rx_mbuf_arr, DPDK_MAX_RX_BURST);
+//
+//            if (0 != nb_rx_pkts)
+//            {
+//                //LWIP_PLATFORM_DIAG(("Received %hu packets\n", nb_rx_pkts));
+//                netif = port2netif_map[portid];
+//                low_level_input(netif, rx_mbuf_arr, nb_rx_pkts);
+//            }
+//        }
+//    }
+//
+//    return 0;
+//}
+
+
 int
 dpdkif_rx_thread_func(void * arg)
 {
     LWIP_UNUSED_ARG(arg);
 
     struct netif * netif;
-    struct rte_mbuf * rx_mbuf_arr[DPDK_MAX_RX_BURST];
-    u8_t nb_ports = rte_eth_dev_count(), portid;
-    u16_t nb_rx_pkts;
-    u32_t core_id = rte_lcore_id();
+    struct pbuf * p;
 
     for ever
     {
-        for (portid = 0; portid < nb_ports; portid++) 
-        {
-            nb_rx_pkts = rte_eth_rx_burst(portid, 0, rx_mbuf_arr, DPDK_MAX_RX_BURST);
+    	p = dpdkif_fetch_pkt(&netif);
 
-            if (0 != nb_rx_pkts) 
-            {
-                //LWIP_PLATFORM_DIAG(("Received %hu packets\n", nb_rx_pkts));
-                netif = port2netif_map[portid];
-                low_level_input(netif, rx_mbuf_arr, nb_rx_pkts);
-            }
+    	if (netif->input(p, netif) != ERR_OK)
+        {
+            LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
+            pbuf_free(p);
+            p = NULL;
         }
     }
 
