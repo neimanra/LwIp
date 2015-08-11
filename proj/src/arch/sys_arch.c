@@ -1,6 +1,7 @@
 
 #include <string.h>
 #include <pthread.h>
+#include <inttypes.h>
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_log.h>
@@ -64,16 +65,15 @@ struct sys_sem {
 struct sys_thread 
 {
   struct sys_thread *next;
-  pthread_t pthread;
+  u8_t   core_id;
 };
 
 static u64_t clock_ticks_sec;
 static u64_t clock_ticks_msec;
 
 static struct sys_thread *threads = NULL;
-static pthread_mutex_t threads_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", "-b", "0000:00:03.0", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x2", "-n", "2", "-b", "0000:00:03.0", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;
@@ -118,7 +118,7 @@ void sys_init(void)
         clock_ticks_sec = rte_get_timer_hz();
         clock_ticks_msec = clock_ticks_sec / 1000;
 
-        LWIP_PLATFORM_DIAG(("CPU Hz: %llu\n", clock_ticks_sec));
+        LWIP_PLATFORM_DIAG(("CPU Hz: %" PRIu64 "\n", clock_ticks_sec));
 
         dpdk_pktmbuf_pool = rte_mempool_create("mbuf_pool", 
                                                NB_MBUF,
@@ -395,52 +395,42 @@ u32_t sys_arch_mbox_tryfetch(sys_mbox_t *mbox, void **msg)
 }
 
 
-static struct sys_thread * introduce_thread(pthread_t id)
-{
-  struct sys_thread *thread;
-
-  thread = (struct sys_thread *)malloc(sizeof(struct sys_thread));
-
-  if (thread != NULL) {
-    pthread_mutex_lock(&threads_mutex);
-    thread->next = threads;
-    thread->pthread = id;
-    threads = thread;
-    pthread_mutex_unlock(&threads_mutex);
-  }
-
-  return thread;
-}
-
-
 sys_thread_t sys_thread_new(const char *name, lwip_thread_fn function, void *arg, int stacksize, int prio)
 {
-  int code;
-  pthread_t tmp;
+  int res;
   struct sys_thread *st = NULL;
   LWIP_UNUSED_ARG(name);
   LWIP_UNUSED_ARG(stacksize);
   LWIP_UNUSED_ARG(prio);
 
-  code = pthread_create(&tmp,
-                        NULL, 
-                        (void *(*)(void *)) 
-                        function, 
-                        arg);
-  
-  if (0 == code) 
+  st = (struct sys_thread *)rte_malloc("NORM", sizeof(struct sys_thread), 0);
+
+  if (NULL != st) 
   {
-    st = introduce_thread(tmp);
-  }
-  
-  if (NULL == st) 
-  {
-    LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: pthread_create %d, st = 0x%lx",
-                       code, (unsigned long)st));
-    abort();
+      res = rte_eal_remote_launch (function, NULL, 0);
+
+      if (0 != res) 
+      {
+          rte_free(st);
+          goto error;
+      }
   }
 
+  else
+  {
+      goto error;
+  }
+ 
+  st->core_id = 0;
+  st->next = threads;
+  threads = st;
+
   return st;
+
+error: 
+    LWIP_DEBUGF(SYS_DEBUG, ("sys_thread_new: create thread failed\n"));
+    abort();
+    return NULL;
 }
 
 
@@ -465,7 +455,7 @@ struct pbuf * sys_arch_allocate_pbuf()
 
 void sys_arch_free_pbuf(struct pbuf * pbuf)
 {
-    rte_pktmbuf_free((((u8_t*)pbuf) - MBUF_PBUF_OFFSET));
+    rte_pktmbuf_free((struct rte_mbuf *)(((u8_t*)pbuf) - MBUF_PBUF_OFFSET));
 }
 
 

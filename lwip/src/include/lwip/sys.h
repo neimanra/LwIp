@@ -86,7 +86,7 @@ typedef u8_t sys_mbox_t;
 #include "arch/sys_arch.h"
 
 /** Function prototype for thread functions */
-typedef void (*lwip_thread_fn)(void *arg);
+typedef int (*lwip_thread_fn)(void *arg);
 
 /* Function prototypes for functions to be implemented by platform ports
    (in sys_arch.c) */

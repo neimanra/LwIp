@@ -317,7 +317,6 @@ err_t iperf_server_init(void)
     ticks_sec = rte_get_timer_hz();
     ///////////////////////////////////////////
     ip_addr_t ipaddr, netmask, gateway;
-    sys_sem_t *sem;
 
     dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
 

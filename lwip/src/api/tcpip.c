@@ -60,7 +60,7 @@ static sys_mbox_t mbox;
 sys_mutex_t lock_tcpip_core;
 #endif /* LWIP_TCPIP_CORE_LOCKING */
 
-
+#if 0
 /**
  * The main lwIP thread. This thread has exclusive access to lwIP core functions
  * (unless access to them is not locked). Other threads communicate with this
@@ -149,6 +149,7 @@ tcpip_thread(void *arg)
     }
   }
 }
+#endif
 
 /**
  * Pass a received packet to tcpip_thread for input processing
@@ -227,7 +228,7 @@ err_t RN_fetch_network_packet(struct tcpip_msg ** msg)
  *
  * @param arg unused argument
  */
-static void
+static int
 RN_tcpip_thread(void *arg)
 {
   struct tcpip_msg *msg;
@@ -244,7 +245,7 @@ RN_tcpip_thread(void *arg)
     LWIP_TCPIP_THREAD_ALIVE();
     /* wait for a message, timeouts are processed while waiting */
     //sys_timeouts_mbox_fetch(&mbox, (void **)&msg);
-    if(sys_arch_mbox_tryfetch(&mbox, &msg) == SYS_MBOX_EMPTY)
+    if(sys_arch_mbox_tryfetch(&mbox, (void**)&msg) == SYS_MBOX_EMPTY)
     {
         RN_fetch_network_packet(&msg);
     }
@@ -311,6 +312,8 @@ RN_tcpip_thread(void *arg)
       break;
     }
   }
+
+  return 0;
 }
 
 
@@ -600,8 +603,7 @@ tcpip_init(tcpip_init_done_fn initfunc, void *arg)
                       "TCP_WND_UPDATE_THRESHOLD:%u\n"\
                       ,TCP_WND,TCP_MAXRTX,TCP_SYNMAXRTX,TCP_QUEUE_OOSEQ,TCP_MSS,TCP_CALCULATE_EFF_SEND_MSS,TCP_SND_BUF,TCP_SND_QUEUELEN,TCP_SNDLOWAT,TCP_SNDQUEUELOWAT,TCP_WND_UPDATE_THRESHOLD));
 
-  //sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
-  rte_eal_remote_launch (RN_tcpip_thread, NULL,1);
+  sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
 }
 
 /**
