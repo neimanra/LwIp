@@ -187,28 +187,28 @@ void sys_init(void)
                     LWIP_PLATFORM_DIAG(("rte_eth_tx_queue_setup:err=%d, port=%hhu\n", res, portid));
                     abort();
                 }
-
-                res = rte_eth_dev_start(portid);
-
-                if (res < 0)
-                {
-                    LWIP_PLATFORM_DIAG(("rte_eth_dev_start:err=%d, port=%hhu\n", res, portid));
-                    abort();
-                }
-
-                LWIP_PLATFORM_DIAG(("done: \n"));
-
-                rte_eth_promiscuous_enable(portid);
-
-                LWIP_PLATFORM_DIAG(("Port %hhu, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
-                                    portid,
-                                    port_eth_addr.addr_bytes[0],
-                                    port_eth_addr.addr_bytes[1],
-                                    port_eth_addr.addr_bytes[2],
-                                    port_eth_addr.addr_bytes[3],
-                                    port_eth_addr.addr_bytes[4],
-                                    port_eth_addr.addr_bytes[5]));
             }
+
+            res = rte_eth_dev_start(portid);
+
+            if (res < 0)
+            {
+                LWIP_PLATFORM_DIAG(("rte_eth_dev_start:err=%d, port=%hhu\n", res, portid));
+                abort();
+            }
+
+            LWIP_PLATFORM_DIAG(("done: \n"));
+
+            rte_eth_promiscuous_enable(portid);
+
+            LWIP_PLATFORM_DIAG(("Port %hhu, MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n\n",
+                                portid,
+                                port_eth_addr.addr_bytes[0],
+                                port_eth_addr.addr_bytes[1],
+                                port_eth_addr.addr_bytes[2],
+                                port_eth_addr.addr_bytes[3],
+                                port_eth_addr.addr_bytes[4],
+                                port_eth_addr.addr_bytes[5]));    
         }
    }
 }
