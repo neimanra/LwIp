@@ -16,6 +16,7 @@
 #include "lwip/pbuf.h"
 #include "lwip/sys.h"
 #include "lwip/arch.h"
+#include "lwip/timers.h"
 #include "netif/etharp.h"
 #include "dpdkif.h"
 
@@ -43,6 +44,10 @@ extern struct rte_mempool * dpdk_pktmbuf_pool;
 static struct netif * port2netif_map[RTE_MAX_ETHPORTS] = {NULL};
 
 static inline
+struct pbuf *
+dpdkif_rx_pkt(struct netif * inp);
+
+static inline
 struct pbuf * 
 sys_arch_mbuf_to_pbuf(struct rte_mbuf  * mbuf)
 {
@@ -59,13 +64,10 @@ sys_arch_pbuf_to_mbuf(struct pbuf  * pbuf)
 static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
-    u8_t * pkt_ptr;
     struct rte_mbuf * mbuf = sys_arch_pbuf_to_mbuf(p);
    
     mbuf->data_off = p->payload - mbuf->buf_addr;
     mbuf->data_len = p->tot_len;
-    pkt_ptr = rte_pktmbuf_mtod(mbuf, u8_t *);
-
 
     if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 /*TODO*/, &mbuf, 1))
     {
@@ -210,7 +212,7 @@ low_level_input(struct netif *netif, struct rte_mbuf ** rx_mbuf_arr, u16_t nb_rx
         dpdkif_input(netif, p);
     }
 
-    rte_mempool_put_bulk(dpdk_pktmbuf_pool, rx_mbuf_arr, nb_rx_pkts);
+    rte_mempool_put_bulk(dpdk_pktmbuf_pool, (void * const *)rx_mbuf_arr, nb_rx_pkts);
 }
 
 
@@ -220,27 +222,90 @@ dpdkif_rx_thread_func(void * arg)
     LWIP_UNUSED_ARG(arg);
 
     struct netif * netif;
-    struct rte_mbuf * rx_mbuf_arr[DPDK_MAX_RX_BURST];
-    u8_t nb_ports = rte_eth_dev_count(), portid;
-    u16_t nb_rx_pkts;
-    u32_t core_id = rte_lcore_id();
+    struct pbuf * p;
+    u8_t dev_idx;
+    u8_t dev_count = rte_eth_dev_count();	
 
     for ever
     {
-        for (portid = 0; portid < nb_ports; portid++) 
+        //Loop through all the interfaces
+        for (dev_idx = 0; dev_idx < dev_count; dev_idx++) 
         {
-            nb_rx_pkts = rte_eth_rx_burst(portid, 0, rx_mbuf_arr, DPDK_MAX_RX_BURST);
+            netif = port2netif_map[dev_idx];
 
-            if (0 != nb_rx_pkts) 
+            p = dpdkif_rx_pkt(netif);
+
+            if(p != NULL)
             {
-                //LWIP_PLATFORM_DIAG(("Received %hu packets\n", nb_rx_pkts));
-                netif = port2netif_map[portid];
-                low_level_input(netif, rx_mbuf_arr, nb_rx_pkts);
+                if (netif->input(p, netif) != ERR_OK)
+                {
+                    LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
+                    pbuf_free(p);
+                    p = NULL;
+                }
             }
         }
+
+    	sys_check_timeouts();
     }
 
     return 0;
+}
+
+
+struct pbuf *
+dpdkif_rx_pkt(struct netif * inp)
+{
+    struct rte_mbuf * mbuf;
+    struct dpdkif * dpdkif;
+    struct pbuf *p;
+    u16_t len;
+
+    dpdkif = inp->state;
+
+    //If we have cached packets - use them
+    if(dpdkif->pkts_ready)
+    {
+    	mbuf = dpdkif->pkt_arr[dpdkif->pktid];
+    	dpdkif->pktid++;
+    	dpdkif->pkts_ready--;
+    }
+
+    //Poll driver otherwise
+    else
+    {
+    	dpdkif->pkts_ready = rte_eth_rx_burst(dpdkif->portid, 0, dpdkif->pkt_arr, DPDK_MAX_RX_BURST);
+
+        if(dpdkif->pkts_ready)
+        {
+        	mbuf = dpdkif->pkt_arr[0];
+        	dpdkif->pktid = 1;
+        	dpdkif->pkts_ready--;
+        }
+
+        else
+        {
+        	return NULL;
+        }
+    }
+
+	len = rte_pktmbuf_pkt_len(mbuf);
+
+	p = sys_arch_mbuf_to_pbuf(mbuf);
+
+	p->tot_len = len;
+	/* set the length of the first pbuf in the chain */
+	p->len = len;
+
+	/* set reference count (needed here in case we fail) */
+	p->ref = 1;
+	p->type = PBUF_POOL;
+	p->next = NULL;
+
+	/* make the payload pointer point 'offset' bytes into pbuf data memory */
+	p->payload = rte_pktmbuf_mtod(mbuf, void *);
+
+	return p;
 }
 
 
@@ -282,7 +347,6 @@ dpdkif_fetch_pkt(struct netif ** inp)
     }
 
 	len = rte_pktmbuf_pkt_len(mbuf);
-	//p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
 
 	p = sys_arch_mbuf_to_pbuf(mbuf);
 
@@ -301,9 +365,11 @@ dpdkif_fetch_pkt(struct netif ** inp)
 	return p;
 }
 
+
+
 int dpdkif_get_if_params(ip_addr_t* ipaddr, ip_addr_t* netmask, ip_addr_t* gateway, uint8_t * hw_addr)
 {
-	FILE * fd = fopen("proj/conf/config", "r");
+	FILE * fd = fopen("conf/config", "r");
 	s8_t * conf_string = malloc(100);
 	size_t string_len;
 	s8_t bytes_read, values_parsed;

@@ -209,13 +209,6 @@ u8_t ip4_addr_netmask_valid(u32_t netmask);
 
 #define ip_addr_islinklocal(addr1) (((addr1)->addr & PP_HTONL(0xffff0000UL)) == PP_HTONL(0xa9fe0000UL))
 
-#define ip_addr_debug_print(debug, ipaddr) \
-  LWIP_DEBUGF(debug, ("%"U16_F".%"U16_F".%"U16_F".%"U16_F,             \
-                      ipaddr != NULL ? ip4_addr1_16(ipaddr) : 0,       \
-                      ipaddr != NULL ? ip4_addr2_16(ipaddr) : 0,       \
-                      ipaddr != NULL ? ip4_addr3_16(ipaddr) : 0,       \
-                      ipaddr != NULL ? ip4_addr4_16(ipaddr) : 0))
-
 /* Get one byte from the 4-byte address */
 #define ip4_addr1(ipaddr) (((u8_t*)(ipaddr))[0])
 #define ip4_addr2(ipaddr) (((u8_t*)(ipaddr))[1])
@@ -227,6 +220,15 @@ u8_t ip4_addr_netmask_valid(u32_t netmask);
 #define ip4_addr2_16(ipaddr) ((u16_t)ip4_addr2(ipaddr))
 #define ip4_addr3_16(ipaddr) ((u16_t)ip4_addr3(ipaddr))
 #define ip4_addr4_16(ipaddr) ((u16_t)ip4_addr4(ipaddr))
+
+static inline void ip_addr_debug_print(int debug, void *ipaddr)
+{
+  LWIP_DEBUGF(debug, ("%"U16_F".%"U16_F".%"U16_F".%"U16_F,             \
+                      ipaddr != NULL ? ip4_addr1_16((ip_addr_t*)ipaddr) : 0,       \
+                      ipaddr != NULL ? ip4_addr2_16((ip_addr_t*)ipaddr) : 0,       \
+                      ipaddr != NULL ? ip4_addr3_16((ip_addr_t*)ipaddr) : 0,       \
+                      ipaddr != NULL ? ip4_addr4_16((ip_addr_t*)ipaddr) : 0));
+}
 
 /** For backwards compatibility */
 #define ip_ntoa(ipaddr)  ipaddr_ntoa(ipaddr)

@@ -40,7 +40,7 @@ LWIPDIR=$(CONTRIBDIR)/lwip/src
 
 CCDEP=gcc
 CC=gcc
-CFLAGS=-g -O0 -Wall -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
+CFLAGS=-g -O0 -Wall -Wno-char-subscripts -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
 
 CFLAGS:=$(CFLAGS) \
 	-march=native -I$(LWIPDIR)/include -I$(LWIPARCH)/include -I$(LWIPARCH)/include/arch -I$(LWIPARCH)/include/netif -I$(LWIPDIR)/include/ipv4 \
@@ -87,10 +87,10 @@ depend dep: .depend
 
 include .depend
 
-echop: $(LWIPOBJS) iperf_server.o
+echop: $(LWIPOBJS) unixlib.o
 	$(CC) -g  -o echop $^ -lpthread -Urte_enic_driver -L$(CONTRIBDIR)/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
 	rm -f *.o
 #$@ $^
 
-.depend: src/app/iperf_server.c $(LWIPFILES)
+.depend: src/app/unixlib.c $(LWIPFILES)
 	$(CCDEP) $(CFLAGS) -MM $^ > .depend || rm -f .depend

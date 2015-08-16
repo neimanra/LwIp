@@ -67,18 +67,9 @@ tcpip_init_done(void *arg)
   sys_sem_t *sem;
   sem = arg;
 
-  netif.hwaddr[0] = 0x8;
-  netif.hwaddr[1] = 0x0;
-  netif.hwaddr[2] = 0x27;
-  netif.hwaddr[3] = 0xd5;
-  netif.hwaddr[4] = 0x3;
-  netif.hwaddr[5] = 0xf4;
-  IP4_ADDR(&gateway, 192,168,56,1);
-  IP4_ADDR(&ipaddr, 192,168,56,101);
-  IP4_ADDR(&netmask, 255,255,255,0);
+  dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
   
-  netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init,
-			      tcpip_input/*ethernet_input*/));
+  netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init, tcpip_input));
 
   netif_set_up(&netif);
   sys_sem_signal(sem);
@@ -87,7 +78,6 @@ tcpip_init_done(void *arg)
 int main()
 {
   sys_sem_t sem;
-  ip_addr_t ipaddr, netmask, gateway;
 	
   sys_init();
 
@@ -95,8 +85,6 @@ int main()
     LWIP_ASSERT("failed to create semaphore", 0);
   }
   tcpip_init(tcpip_init_done, &sem);
-
- // rte_eal_mp_remote_launch ((lcore_function_t *)dpdkif_rx_thread_func, NULL, SKIP_MASTER);
 
   sys_sem_wait(&sem);
   sys_sem_free(&sem);

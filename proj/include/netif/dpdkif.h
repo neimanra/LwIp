@@ -2,6 +2,15 @@
 #define __DPDKIF_INIT__
 #include "lwip/netif.h"
 #include "lwip/pbuf.h"
+
+typedef struct
+{
+	ip_addr_t ipaddr;
+	ip_addr_t netmask;
+	ip_addr_t gateway;
+	uint8_t hw_addr[NETIF_MAX_HWADDR_LEN];
+}if_params;
+
 err_t
 dpdkif_init(struct netif *netif);
 

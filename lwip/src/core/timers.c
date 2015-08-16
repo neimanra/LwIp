@@ -62,9 +62,9 @@
 
 /** The one and only timeout list */
 static struct sys_timeo *next_timeout;
-#if NO_SYS
+//#if NO_SYS
 static u32_t timeouts_last_time;
-#endif /* NO_SYS */
+//#endif /* NO_SYS */
 
 #if LWIP_TCP
 /** global variable that shows if the tcp timer is currently scheduled or not */
@@ -346,7 +346,7 @@ sys_untimeout(sys_timeout_handler handler, void *arg)
   return;
 }
 
-#if NO_SYS
+//#if NO_SYS
 
 /** Handle timeouts for NO_SYS==1 (i.e. without using
  * tcpip_thread/sys_timeouts_mbox_fetch(). Uses sys_now() to call timeout
@@ -410,7 +410,7 @@ sys_restart_timeouts(void)
   timeouts_last_time = sys_now();
 }
 
-#else /* NO_SYS */
+//#else /* NO_SYS */
 
 /**
  * Wait (forever) for a message to arrive in an mbox.
@@ -476,7 +476,7 @@ sys_timeouts_mbox_fetch(sys_mbox_t *mbox, void **msg)
   }
 }
 
-#endif /* NO_SYS */
+//#endif /* NO_SYS */
 
 #else /* LWIP_TIMERS */
 /* Satisfy the TCP code which calls this function */

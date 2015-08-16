@@ -86,7 +86,7 @@ typedef u8_t sys_mbox_t;
 #include "arch/sys_arch.h"
 
 /** Function prototype for thread functions */
-typedef void (*lwip_thread_fn)(void *arg);
+typedef int (*lwip_thread_fn)(void *arg);
 
 /* Function prototypes for functions to be implemented by platform ports
    (in sys_arch.c) */
@@ -153,11 +153,17 @@ void sys_sem_free(sys_sem_t *sem);
 #define sys_sem_wait(sem)                  sys_arch_sem_wait(sem, 0)
 #ifndef sys_sem_valid
 /** Check if a sempahore is valid/allocated: return 1 for valid, 0 for invalid */
-int sys_sem_valid(sys_sem_t *sem);
+static inline int sys_sem_valid(sys_sem_t *sem)
+{
+	return (((sem) != NULL) && (*(sem) != NULL));
+}
 #endif
 #ifndef sys_sem_set_invalid
 /** Set a semaphore invalid so that sys_sem_valid returns 0 */
-void sys_sem_set_invalid(sys_sem_t *sem);
+static inline void sys_sem_set_invalid(sys_sem_t *sem)
+{
+	if((sem) != NULL) { *(sem) = NULL; }
+}
 #endif
 
 /* Time functions. */
@@ -207,11 +213,17 @@ void sys_mbox_free(sys_mbox_t *mbox);
 #define sys_mbox_fetch(mbox, msg) sys_arch_mbox_fetch(mbox, msg, 0)
 #ifndef sys_mbox_valid
 /** Check if an mbox is valid/allocated: return 1 for valid, 0 for invalid */
-int sys_mbox_valid(sys_mbox_t *mbox);
+static inline int sys_mbox_valid(sys_mbox_t *mbox)
+{
+	return (((mbox) != NULL) && (*(mbox) != NULL));
+}
 #endif
 #ifndef sys_mbox_set_invalid
 /** Set an mbox invalid so that sys_mbox_valid returns 0 */
-void sys_mbox_set_invalid(sys_mbox_t *mbox);
+static inline void sys_mbox_set_invalid(sys_mbox_t *mbox)
+{
+	if((mbox) != NULL) { *(mbox) = NULL; }
+}
 #endif
 
 /** The only thread function:
