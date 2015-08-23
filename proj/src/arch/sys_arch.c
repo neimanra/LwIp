@@ -73,7 +73,7 @@ static u64_t clock_ticks_msec;
 
 static struct sys_thread *threads = NULL;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x2", "-n", "2", "-b", "0000:00:03.0", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", "-b", "0000:00:03.0", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;
@@ -93,6 +93,18 @@ static const struct rte_eth_conf port_conf =
     {
 		.mq_mode = ETH_MQ_TX_NONE,
 	},
+};
+
+static const struct rte_eth_txconf txconf =
+{
+	.tx_thresh =
+	{
+			.pthresh = 0, /**< Ring prefetch threshold. */
+			.hthresh = 0, /**< Ring host threshold. */
+			.wthresh = 0,
+	},
+	.tx_rs_thresh = 32,
+	.txq_flags = ((uint32_t)ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOOFFLOADS),
 };
 
 
@@ -180,7 +192,7 @@ void sys_init(void)
 
                 res = rte_eth_tx_queue_setup(portid, queueid, TX_DESC_DEFAULT,
                                              rte_eth_dev_socket_id(portid),
-                                             NULL);
+                                             &txconf);
 
                 if (res < 0)
                 {
