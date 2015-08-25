@@ -29,7 +29,7 @@
 # Author: Adam Dunkels <adam@sics.se>
 #
 
-CONTRIBDIR=/root/LwIp
+CONTRIBDIR=/home/rami/Teridion/LwIp
 LWIPARCH=$(CONTRIBDIR)/proj
 DPDKDIR=$(CONTRIBDIR)/dpdk
 

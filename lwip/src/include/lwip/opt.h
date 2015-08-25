@@ -1080,6 +1080,11 @@
 #define LWIP_CALLBACK_API               1
 #endif
 
+#ifndef LWIP_WND_SCALE
+#define LWIP_WND_SCALE			0
+#define TCP_RCV_SCALE			0
+#endif
+
 
 /*
    ----------------------------------

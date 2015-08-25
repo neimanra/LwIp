@@ -126,18 +126,32 @@ static struct memp *memp_tab[MEMP_MAX];
 #if !MEM_USE_POOLS && !MEMP_MEM_MALLOC
 static
 #endif
+#if LWIP_WND_SCALE
 const u16_t memp_sizes[MEMP_MAX] = {
 #define LWIP_MEMPOOL(name,num,size,desc)  LWIP_MEM_ALIGN_SIZE(size),
 #include "lwip/memp_std.h"
 };
+#else
+const u32_t memp_sizes[MEMP_MAX] = {
+#define LWIP_MEMPOOL(name,num,size,desc)  LWIP_MEM_ALIGN_SIZE(size),
+#include "lwip/memp_std.h"
+};
+#endif
 
 #if !MEMP_MEM_MALLOC /* don't build if not configured for use in lwipopts.h */
 
 /** This array holds the number of elements in each pool. */
+#if LWIP_WND_SCALE
+static const u32_t memp_num[MEMP_MAX] = {
+#define LWIP_MEMPOOL(name,num,size,desc)  (num),
+#include "lwip/memp_std.h"
+};
+#else
 static const u16_t memp_num[MEMP_MAX] = {
 #define LWIP_MEMPOOL(name,num,size,desc)  (num),
 #include "lwip/memp_std.h"
 };
+#endif
 
 /** This array holds a textual description of each pool. */
 #ifdef LWIP_DEBUG
@@ -338,7 +352,11 @@ void
 memp_init(void)
 {
   struct memp *memp;
-  u16_t i, j;
+#if LWIP_WND_SCALE
+  u32_t i, j;
+#else
+  u16_t i,j;
+#endif
 
   for (i = 0; i < MEMP_MAX; ++i) {
     MEMP_STATS_AVAIL(used, i, 0);

@@ -483,9 +483,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
     npcb->state = SYN_RCVD;
     npcb->rcv_nxt = seqno + 1;
     npcb->rcv_ann_right_edge = npcb->rcv_nxt;
-    npcb->snd_wnd = tcphdr->wnd;
     npcb->snd_wnd_max = tcphdr->wnd;
-    npcb->ssthresh = npcb->snd_wnd;
     npcb->snd_wl1 = seqno - 1;/* initialise to seqno-1 to force window update */
     npcb->callback_arg = pcb->callback_arg;
 #if LWIP_CALLBACK_API
@@ -499,6 +497,9 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
 
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb);
+    npcb->snd_wnd = SND_WND_SCALE(npcb, tcphdr->wnd);
+    npcb->ssthresh = npcb->snd_wnd;
+    
 #if TCP_CALCULATE_EFF_SEND_MSS
     npcb->mss = tcp_eff_send_mss(npcb->mss, &(npcb->remote_ip));
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
@@ -635,7 +636,7 @@ tcp_process(struct tcp_pcb *pcb)
       pcb->rcv_nxt = seqno + 1;
       pcb->rcv_ann_right_edge = pcb->rcv_nxt;
       pcb->lastack = ackno;
-      pcb->snd_wnd = tcphdr->wnd;
+      pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);
       pcb->snd_wnd_max = tcphdr->wnd;
       pcb->snd_wl1 = seqno - 1; /* initialise to seqno - 1 to force window update */
       pcb->state = ESTABLISHED;
@@ -651,7 +652,11 @@ tcp_process(struct tcp_pcb *pcb)
       pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
       LWIP_ASSERT("pcb->snd_queuelen > 0", (pcb->snd_queuelen > 0));
       --pcb->snd_queuelen;
+#ifdef LWIP_WND_SCALE
+      LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_process: SYN-SENT --queuelen %"U32_F"\n", (u32_t)pcb->snd_queuelen));
+#else
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_process: SYN-SENT --queuelen %"U16_F"\n", (u16_t)pcb->snd_queuelen));
+#endif      
       rseg = pcb->unacked;
       pcb->unacked = rseg->next;
       tcp_seg_free(rseg);
@@ -684,7 +689,11 @@ tcp_process(struct tcp_pcb *pcb)
     if (flags & TCP_ACK) {
       /* expected ACK number? */
       if (TCP_SEQ_BETWEEN(ackno, pcb->lastack+1, pcb->snd_nxt)) {
-        u16_t old_cwnd;
+#if LWIP_WND_SCALE
+        u32_t old_cwnd;
+#else
+	u16_t old_cwnd;	  
+#endif
         pcb->state = ESTABLISHED;
         LWIP_DEBUGF(TCP_DEBUG, ("TCP connection established %"U16_F" -> %"U16_F".\n", inseg.tcphdr->src, inseg.tcphdr->dest));
 #if LWIP_CALLBACK_API
@@ -938,9 +947,15 @@ tcp_receive(struct tcp_pcb *pcb)
               if (pcb->dupacks > 3) {
                 /* Inflate the congestion window, but not if it means that
                    the value overflows. */
+#if LWIP_WND_SCALE
+                if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
+                  pcb->cwnd += pcb->mss;
+                }
+#else
                 if ((u16_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
                   pcb->cwnd += pcb->mss;
                 }
+#endif
               } else if (pcb->dupacks == 3) {
                 /* Do fast retransmit */
                 tcp_rexmit_fast(pcb);
@@ -984,18 +999,37 @@ tcp_receive(struct tcp_pcb *pcb)
          ssthresh). */
       if (pcb->state >= ESTABLISHED) {
         if (pcb->cwnd < pcb->ssthresh) {
+#if LWIP_WND_SCALE
+          if ((u32_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
+            pcb->cwnd += pcb->mss;
+          }
+#else
           if ((u16_t)(pcb->cwnd + pcb->mss) > pcb->cwnd) {
             pcb->cwnd += pcb->mss;
           }
-          LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U16_F"\n", pcb->cwnd));
+#endif
+#if LWIP_WND_SCALE	  
+          LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U32_F"\n", pcb->cwnd));
+#else
+	  LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: slow start cwnd %"U16_F"\n", pcb->cwnd));	  
+#endif
         } else {
+#if LWIP_WND_SCALE	    
+          u32_t new_cwnd = (pcb->cwnd + pcb->mss * pcb->mss / pcb->cwnd);
+          if (new_cwnd > pcb->cwnd) {
+            pcb->cwnd = new_cwnd;
+          }
+          LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U32_F"\n", pcb->cwnd));
+#else
           u16_t new_cwnd = (pcb->cwnd + pcb->mss * pcb->mss / pcb->cwnd);
           if (new_cwnd > pcb->cwnd) {
             pcb->cwnd = new_cwnd;
           }
           LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U16_F"\n", pcb->cwnd));
+#endif
         }
-      }
+      }	    
+
       LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: ACK for %"U32_F", unacked->seqno %"U32_F":%"U32_F"\n",
                                     ackno,
                                     pcb->unacked != NULL?
@@ -1015,9 +1049,13 @@ tcp_receive(struct tcp_pcb *pcb)
 
         next = pcb->unacked;
         pcb->unacked = pcb->unacked->next;
-
+#if LWIP_WND_SCALE
+        LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U32_F" ... ", (u32_t)pcb->snd_queuelen));
+        LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
+#else
         LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U16_F" ... ", (u16_t)pcb->snd_queuelen));
         LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
+#endif
         /* Prevent ACK for FIN to generate a sent event */
         if ((pcb->acked != 0) && ((TCPH_FLAGS(next->tcphdr) & TCP_FIN) != 0)) {
           pcb->acked--;
@@ -1026,7 +1064,11 @@ tcp_receive(struct tcp_pcb *pcb)
         pcb->snd_queuelen -= pbuf_clen(next->p);
         tcp_seg_free(next);
 
+#if LWIP_WND_SCALE
+	LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U32_F" (after freeing unacked)\n", (u32_t)pcb->snd_queuelen));
+#else
         LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unacked)\n", (u16_t)pcb->snd_queuelen));
+#endif	
         if (pcb->snd_queuelen != 0) {
           //LWIP_ASSERT("tcp_receive: valid queue length", pcb->unacked != NULL ||
           //            pcb->unsent != NULL);
@@ -1066,15 +1108,25 @@ tcp_receive(struct tcp_pcb *pcb)
         pcb->unsent_oversize = 0;
       }
 #endif /* TCP_OVERSIZE */ 
+
+#if LWIP_WND_SCALE
+      LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U32_F" ... ", (u32_t)pcb->snd_queuelen));
+      LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
+#else 
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_receive: queuelen %"U16_F" ... ", (u16_t)pcb->snd_queuelen));
       LWIP_ASSERT("pcb->snd_queuelen >= pbuf_clen(next->p)", (pcb->snd_queuelen >= pbuf_clen(next->p)));
+#endif
       /* Prevent ACK for FIN to generate a sent event */
       if ((pcb->acked != 0) && ((TCPH_FLAGS(next->tcphdr) & TCP_FIN) != 0)) {
         pcb->acked--;
       }
       pcb->snd_queuelen -= pbuf_clen(next->p);
       tcp_seg_free(next);
+#if LWIP_WND_SCALE
+      LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U32_F" (after freeing unsent)\n", (u32_t)pcb->snd_queuelen));
+#else 
       LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unsent)\n", (u16_t)pcb->snd_queuelen));
+#endif
       if (pcb->snd_queuelen != 0) {
         LWIP_ASSERT("tcp_receive: valid queue length",
           pcb->unacked != NULL || pcb->unsent != NULL);
@@ -1547,7 +1599,7 @@ tcp_parseopt(struct tcp_pcb *pcb)
 #if LWIP_TCP_TIMESTAMPS
   u32_t tsval;
 #endif
-
+  
   opts = (u8_t *)tcphdr + TCP_HLEN;
 
   /* Parse the TCP MSS option, if present. */
@@ -1579,6 +1631,26 @@ tcp_parseopt(struct tcp_pcb *pcb)
         /* Advance to next option */
         c += 0x04;
         break;
+#if LWIP_WND_SCALE
+    case 0x03:
+	LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_parseopt: WND_SCALE\n"));
+        if (opts[c + 1] != 0x03 || c + 0x03 > max_c) {
+          /* Bad length */
+          LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_parseopt: bad length\n"));
+          return;
+        }
+	/* An WND_SCALE option with the right option length. */
+	pcb->snd_scale = opts[c + 2];
+	pcb->rcv_scale = TCP_RCV_SCALE;
+	/* If syn was received with wnd scale option,
+	   activate wnd scale opt */
+	if( flags & TCP_SYN ) {
+	    pcb->flags |= TF_WND_SCALE;
+	}
+	/* Advance to next option */
+	c += 0x03;
+	break;
+#endif
 #if LWIP_TCP_TIMESTAMPS
       case 0x08:
         LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_parseopt: TS\n"));

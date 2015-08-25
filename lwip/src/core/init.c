@@ -112,11 +112,20 @@
   #error "MEMP_NUM_REASSDATA > IP_REASS_MAX_PBUFS doesn't make sense since each struct ip_reassdata must hold 2 pbufs at least!"
 #endif
 #endif /* !MEMP_MEM_MALLOC */
+#if LWIP_WND_SCALE
+#if (LWIP_TCP && (TCP_WND > 0xffffffff))
+  #error "If you want to use TCP, TCP_WND must fit in an u32_t, so, you have to reduce it in your lwipopts.h"
+#endif
+#if (LWIP_TCP && (TCP_SND_QUEUELEN > 0xffffffff))
+  #error "If you want to use TCP, TCP_SND_QUEUELEN must fit in an u32_t, so, you have to reduce it in your lwipopts.h"
+#endif
+#else
 #if (LWIP_TCP && (TCP_WND > 0xffff))
   #error "If you want to use TCP, TCP_WND must fit in an u16_t, so, you have to reduce it in your lwipopts.h"
 #endif
 #if (LWIP_TCP && (TCP_SND_QUEUELEN > 0xffff))
   #error "If you want to use TCP, TCP_SND_QUEUELEN must fit in an u16_t, so, you have to reduce it in your lwipopts.h"
+#endif
 #endif
 #if (LWIP_TCP && (TCP_SND_QUEUELEN < 2))
   #error "TCP_SND_QUEUELEN must be at least 2 for no-copy TCP writes to work"

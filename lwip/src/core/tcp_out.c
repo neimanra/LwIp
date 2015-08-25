@@ -105,7 +105,7 @@ tcp_output_alloc_header(struct tcp_pcb *pcb, u16_t optlen, u16_t datalen,
     tcphdr->seqno = seqno_be;
     tcphdr->ackno = htonl(pcb->rcv_nxt);
     TCPH_HDRLEN_FLAGS_SET(tcphdr, (5 + optlen / 4), TCP_ACK);
-    tcphdr->wnd = htons(pcb->rcv_ann_wnd);
+    tcphdr->wnd = htons(RCV_WND_SCALE(pcb,pcb->rcv_ann_wnd));
     tcphdr->chksum = 0;
     tcphdr->urgp = 0;
 
@@ -311,15 +311,23 @@ tcp_write_checks(struct tcp_pcb *pcb, u16_t len)
     pcb->flags |= TF_NAGLEMEMERR;
     return ERR_MEM;
   }
-
+#ifdef LWIP_WND_SCALE
+  LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_write: queuelen: %"U32_F"\n", (u32_t)pcb->snd_queuelen));
+#else
   LWIP_DEBUGF(TCP_QLEN_DEBUG, ("tcp_write: queuelen: %"U16_F"\n", (u16_t)pcb->snd_queuelen));
+#endif
 
   /* If total number of pbufs on the unsent/unacked queues exceeds the
    * configured maximum, return an error */
   /* check for configured max queuelen and possible overflow */
   if ((pcb->snd_queuelen >= TCP_SND_QUEUELEN) || (pcb->snd_queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
+#ifdef LWIP_WND_SCALE
+    LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too long queue %"U32_F" (max %"U32_F")\n",
+      pcb->snd_queuelen, TCP_SND_QUEUELEN));      
+#else
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 3, ("tcp_write: too long queue %"U16_F" (max %"U16_F")\n",
       pcb->snd_queuelen, TCP_SND_QUEUELEN));
+#endif
     TCP_STATS_INC(tcp.memerr);
     pcb->flags |= TF_NAGLEMEMERR;
     return ERR_MEM;
@@ -356,12 +364,16 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
   struct pbuf *concat_p = NULL;
   struct tcp_seg *last_unsent = NULL, *seg = NULL, *prev_seg = NULL, *queue = NULL;
   u16_t pos = 0; /* position in 'arg' data */
+#if LWIP_WND_SCALE
+  u32_t queuelen;
+#else
   u16_t queuelen;
+#endif
   u8_t optlen = 0;
   u8_t optflags = 0;
 #if TCP_OVERSIZE
   u16_t oversize = 0;
-  u16_t oversize_used = 0;
+  u16_t oversize_used = 0;  
 #endif /* TCP_OVERSIZE */
 #if TCP_CHECKSUM_ON_COPY
   u16_t concat_chksum = 0;
@@ -391,10 +403,10 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
 #if LWIP_TCP_TIMESTAMPS
   if ((pcb->flags & TF_TIMESTAMP)) {
     optflags = TF_SEG_OPTS_TS;
-    optlen = LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS);
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
 
+  optlen = LWIP_TCP_OPT_LENGTH( optflags );
 
   /*
    * TCP segmentation is done in three phases with increasing complexity:
@@ -578,7 +590,11 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
      * length of the queue exceeds the configured maximum or
      * overflows. */
     if ((queuelen > TCP_SND_QUEUELEN) || (queuelen > TCP_SNDQUEUELEN_OVERFLOW)) {
+#ifdef LWIP_WND_SCALE
+      LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U32_F" (%"U32_F")\n", queuelen, TCP_SND_QUEUELEN));	
+#else
       LWIP_DEBUGF(TCP_OUTPUT_DEBUG | 2, ("tcp_write: queue too long %"U16_F" (%"U16_F")\n", queuelen, TCP_SND_QUEUELEN));
+#endif      
       pbuf_free(p);
       goto memerr;
     }
@@ -748,6 +764,12 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
     optflags |= TF_SEG_OPTS_TS;
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
+#if LWIP_WND_SCALE
+  if ((pcb->flags & TF_WND_SCALE) && ( flags & TCP_SYN ) ) {
+    optflags |= TF_SEG_OPTS_WND_SCALE;
+  }
+#endif /* LWIP_TCP_TIMESTAMPS */
+  
   optlen = LWIP_TCP_OPT_LENGTH(optflags);
 
   /* tcp_enqueue_flags is always called with either SYN or FIN in flags.
@@ -783,6 +805,7 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
                ntohl(seg->tcphdr->seqno),
                ntohl(seg->tcphdr->seqno) + TCP_TCPLEN(seg),
                (u16_t)flags));
+
 
   /* Now append seg to pcb->unsent queue */
   if (pcb->unsent == NULL) {
@@ -834,6 +857,25 @@ tcp_build_timestamp_option(struct tcp_pcb *pcb, u32_t *opts)
 }
 #endif
 
+#if LWIP_WND_SCALE
+/* Build a window scale option (3 bytes long) at the specified options pointer)
+ *
+ * @param pcb tcp_pcb
+ * @param opts option pointer where to store the window scale option
+ */
+static void
+tcp_build_wnd_scale_option(struct tcp_pcb *pcb, u32_t *opts)
+{
+  /* Pad with one NOP option to make everything nicely aligned */
+    unsigned char* optdata = (unsigned char*) opts;
+    optdata[0] = 1; /*NOP */
+    optdata[1] = 3; /*Window Scale option code*/
+    optdata[2] = 3; /*option length*/
+    optdata[3] = TCP_RCV_SCALE; /* window scale value*/
+}
+#endif
+
+
 /** Send an ACK without data.
  *
  * @param pcb Protocol control block for the TCP connection to send the ACK
@@ -844,13 +886,14 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   struct pbuf *p;
   struct tcp_hdr *tcphdr;
   u8_t optlen = 0;
+  u32_t *opts;
 
 #if LWIP_TCP_TIMESTAMPS
   if (pcb->flags & TF_TIMESTAMP) {
     optlen = LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS);
   }
 #endif
-
+  
   p = tcp_output_alloc_header(pcb, optlen, 0, htonl(pcb->snd_nxt));
   if (p == NULL) {
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: (ACK) could not allocate pbuf\n"));
@@ -862,12 +905,15 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   /* remove ACK flags from the PCB, as we send an empty ACK now */
   pcb->flags &= ~(TF_ACK_DELAY | TF_ACK_NOW);
 
+  opts = (u32_t *)(void *)(tcphdr + 1);
+
   /* NB. MSS option is only sent on SYNs, so ignore it here */
 #if LWIP_TCP_TIMESTAMPS
   pcb->ts_lastacksent = pcb->rcv_nxt;
 
   if (pcb->flags & TF_TIMESTAMP) {
-    tcp_build_timestamp_option(pcb, (u32_t *)(tcphdr + 1));
+    tcp_build_timestamp_option(pcb, opts );
+    opts += 3;
   }
 #endif 
 
@@ -917,6 +963,9 @@ tcp_output(struct tcp_pcb *pcb)
 
   wnd = LWIP_MIN(pcb->snd_wnd, pcb->cwnd);
 
+  LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U32_F", cwnd %"U32_F
+	  ", wnd %"U32_F"\n",pcb->snd_wnd, pcb->cwnd, wnd ));
+
   seg = pcb->unsent;
 
   /* If the TF_ACK_NOW flag is set and no data will be sent (either
@@ -945,13 +994,13 @@ tcp_output(struct tcp_pcb *pcb)
 #endif /* TCP_OUTPUT_DEBUG */
 #if TCP_CWND_DEBUG
   if (seg == NULL) {
-    LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U16_F
-                                 ", cwnd %"U16_F", wnd %"U32_F
+    LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U32_F
+                                 ", cwnd %"U32_F", wnd %"U32_F
                                  ", seg == NULL, ack %"U32_F"\n",
                                  pcb->snd_wnd, pcb->cwnd, wnd, pcb->lastack));
   } else {
     LWIP_DEBUGF(TCP_CWND_DEBUG, 
-                ("tcp_output: snd_wnd %"U16_F", cwnd %"U16_F", wnd %"U32_F
+                ("tcp_output: snd_wnd %"U32_F", cwnd %"U32_F", wnd %"U32_F
                  ", effwnd %"U32_F", seq %"U32_F", ack %"U32_F"\n",
                  pcb->snd_wnd, pcb->cwnd, wnd,
                  ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len,
@@ -975,7 +1024,7 @@ tcp_output(struct tcp_pcb *pcb)
       break;
     }
 #if TCP_CWND_DEBUG
-    LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U16_F", cwnd %"U16_F", wnd %"U32_F", effwnd %"U32_F", seq %"U32_F", ack %"U32_F", i %"S16_F"\n",
+    LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_output: snd_wnd %"U32_F", cwnd %"U32_F", wnd %"U32_F", effwnd %"U32_F", seq %"U32_F", ack %"U32_F", i %"S16_F"\n",
                             pcb->snd_wnd, pcb->cwnd, wnd,
                             ntohl(seg->tcphdr->seqno) + seg->len -
                             pcb->lastack,
@@ -1060,7 +1109,7 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
   seg->tcphdr->ackno = htonl(pcb->rcv_nxt);
 
   /* advertise our receive window size in this TCP segment */
-  seg->tcphdr->wnd = htons(pcb->rcv_ann_wnd);
+  seg->tcphdr->wnd = htons(RCV_WND_SCALE(pcb,pcb->rcv_ann_wnd));
 
   pcb->rcv_ann_right_edge = pcb->rcv_nxt + pcb->rcv_ann_wnd;
 
@@ -1085,7 +1134,13 @@ tcp_output_segment(struct tcp_seg *seg, struct tcp_pcb *pcb)
     opts += 3;
   }
 #endif
-
+#if LWIP_WND_SCALE
+  if ( seg->flags & TF_SEG_OPTS_WND_SCALE ) {
+    tcp_build_wnd_scale_option(pcb, opts);
+    opts += 1;
+  }
+#endif
+  
   /* Set retransmission timer running if it is not currently enabled 
      This must be set before checking the route. */
   if (pcb->rtime == -1) {
@@ -1212,7 +1267,11 @@ tcp_rst(u32_t seqno, u32_t ackno,
   tcphdr->seqno = htonl(seqno);
   tcphdr->ackno = htonl(ackno);
   TCPH_HDRLEN_FLAGS_SET(tcphdr, TCP_HLEN/4, TCP_RST | TCP_ACK);
-  tcphdr->wnd = PP_HTONS(TCP_WND);
+#if LWIP_WND_SCALE
+  tcphdr->wnd = PP_HTONS( ( ( TCP_WND >> TCP_RCV_SCALE ) & 0xFFFF ) );
+#else
+  tcphdr->wnd = PP_HTONS( TCP_WND );
+#endif
   tcphdr->chksum = 0;
   tcphdr->urgp = 0;
 

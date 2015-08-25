@@ -292,12 +292,14 @@ struct tcp_seg {
 #define TF_SEG_OPTS_TS          (u8_t)0x02U /* Include timestamp option. */
 #define TF_SEG_DATA_CHECKSUMMED (u8_t)0x04U /* ALL data (not the header) is
                                                checksummed into 'chksum' */
+#define TF_SEG_OPTS_WND_SCALE 	(u8_t)0x08U /* Include WND SCALE option */
   struct tcp_hdr *tcphdr;  /* the TCP header */
 };
 
 #define LWIP_TCP_OPT_LENGTH(flags)              \
-  (flags & TF_SEG_OPTS_MSS ? 4  : 0) +          \
-  (flags & TF_SEG_OPTS_TS  ? 12 : 0)
+  (flags & TF_SEG_OPTS_MSS 	 ? 4  : 0) +    \
+  (flags & TF_SEG_OPTS_TS  	 ? 12 : 0) +    \
+  (flags & TF_SEG_OPTS_WND_SCALE ? 4  : 0)
 
 /** This returns a TCP header option for MSS in an u32_t */
 #define TCP_BUILD_MSS_OPTION(mss) htonl(0x02040000 | ((mss) & 0xFFFF))
