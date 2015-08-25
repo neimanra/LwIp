@@ -20,6 +20,8 @@
 #include "netif/etharp.h"
 #include "dpdkif.h"
 
+#define MONITOR_CPU_LOAD (1)
+
 /* Compare 2 16bit aligned MAC addresses */
 #define CMP_MAC_ADDR(MAC1, MAC2)\
 (((*MAC1) == (*MAC2)) && (*(MAC1 + 1) == *(MAC2 + 1)) && (*(MAC1 + 2) == *(MAC2 + 2)))
@@ -224,8 +226,13 @@ dpdkif_rx_thread_func(void * arg)
     struct netif * netif;
     struct pbuf * p;
     u8_t dev_idx;
-    u8_t dev_count = rte_eth_dev_count();	
+    u8_t dev_count = rte_eth_dev_count();
 
+#ifdef MONITOR_CPU_LOAD
+    u64_t hz = rte_get_timer_hz();
+    u64_t cycles_end = rte_get_timer_cycles() + hz;
+    u64_t busy_start =0, busy_total = 0;
+#endif
     for ever
     {
         //Loop through all the interfaces
@@ -237,6 +244,9 @@ dpdkif_rx_thread_func(void * arg)
 
             if(p != NULL)
             {
+#ifdef MONITOR_CPU_LOAD
+                busy_start = rte_get_timer_cycles();
+#endif
                 if (netif->input(p, netif) != ERR_OK)
                 {
                     LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
@@ -244,6 +254,26 @@ dpdkif_rx_thread_func(void * arg)
                     p = NULL;
                 }
             }
+#ifdef MONITOR_CPU_LOAD
+            else if (busy_start) 
+            {
+                busy_total += rte_get_timer_cycles() - busy_start;
+                busy_start = 0;
+            }
+
+            if (rte_get_timer_cycles() >= cycles_end)
+            {
+                if (busy_start) 
+                {
+                    busy_total += rte_get_timer_cycles() - busy_start;
+                    busy_start = 0;
+                }
+
+                printf("Utilization:%lf%%\n", (double)(busy_total * 100) / hz);
+                busy_total = 0;
+                cycles_end = rte_get_timer_cycles() + hz;
+            }
+#endif
         }
 
     	sys_check_timeouts();

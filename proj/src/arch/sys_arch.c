@@ -73,7 +73,7 @@ static u64_t clock_ticks_msec;
 
 static struct sys_thread *threads = NULL;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", "-b", "0000:00:03.0", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x440", "-n", "2", "-b", "0000:00:03.0", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;
@@ -125,6 +125,8 @@ void sys_init(void)
             LWIP_PLATFORM_DIAG(("Invalid EAL arguments\n"));
             abort();
         }
+
+        LWIP_PLATFORM_DIAG(("Using NUMA %u\n",rte_socket_id()));
 
         /*Initialize system time constants*/
         clock_ticks_sec = rte_get_timer_hz();
