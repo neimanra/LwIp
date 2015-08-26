@@ -20,5 +20,6 @@ typedef struct sys_thread * sys_thread_t;
 
 struct pbuf * sys_arch_allocate_pbuf();
 void sys_arch_free_pbuf(struct pbuf * pbuf);
+void sys_arch_free_pbuf_ref(struct pbuf * pbuf);
 
 #endif /* __ARCH_SYS_ARCH_H__ */

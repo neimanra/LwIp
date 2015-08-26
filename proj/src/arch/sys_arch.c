@@ -473,6 +473,11 @@ void sys_arch_free_pbuf(struct pbuf * pbuf)
 }
 
 
+void sys_arch_free_pbuf_ref(struct pbuf * pbuf)
+{
+    rte_mbuf_refcnt_update((struct rte_mbuf *)(((u8_t*)pbuf) - MBUF_PBUF_OFFSET), 1);
+}
+
 /*-----------------------------------------------------------------------------------*/
 static struct sys_sem *
 sys_sem_new_internal(u8_t count)
