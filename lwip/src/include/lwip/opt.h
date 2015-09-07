@@ -920,7 +920,7 @@
  * (2 * TCP_MSS) for things to work well
  */
 #ifndef TCP_WND
-#define TCP_WND                        (1048576) //(4194048)
+#define TCP_WND                        (524288) //(4194048)
 #endif 
 
 /**
@@ -1055,7 +1055,7 @@
  * TCP_MSS/4: Try to create 4 fragments or less per TCP packet.
  */
 #ifndef TCP_OVERSIZE
-#define TCP_OVERSIZE                    TCP_MSS
+#define TCP_OVERSIZE                    0//TCP_MSS
 #endif
 
 /**

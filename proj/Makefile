@@ -87,10 +87,10 @@ depend dep: .depend
 
 include .depend
 
-echop: $(LWIPOBJS) iperf_server.o
+echop: $(LWIPOBJS) echo_server.o
 	$(CC) -g  -o echop $^ -lpthread -lrt  -L$(CONTRIBDIR)/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
 	rm -f *.o
 #$@ $^
 
-.depend: src/app/iperf_server.c $(LWIPFILES)
+.depend: src/app/echo_server.c $(LWIPFILES)
 	$(CCDEP) $(CFLAGS) -MM $^ > .depend || rm -f .depend

@@ -373,7 +373,7 @@ u64_t lhz = rte_get_timer_hz();
         if (rte_get_timer_cycles() >= chill_end) 
         {
             dpdkif->pkts_ready = rte_eth_rx_burst(dpdkif->portid, 0, dpdkif->pkt_arr, DPDK_MAX_RX_BURST);
-            chill_end = rte_get_timer_cycles() + (lhz / 30000);
+            chill_end = rte_get_timer_cycles() + (lhz / 20000);
             iterations++;
             if(dpdkif->pkts_ready)
             {
