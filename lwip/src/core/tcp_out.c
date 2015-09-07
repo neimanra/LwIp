@@ -54,7 +54,7 @@
 #if LWIP_TCP_TIMESTAMPS
 #include "lwip/sys.h"
 #endif
-
+#include "sys_arch.h"
 #include <string.h>
 
 /* Define some copy-macros for checksum-on-copy so that the code looks
@@ -765,7 +765,7 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
 #if LWIP_WND_SCALE
-  if ((pcb->flags & TF_WND_SCALE) && ( flags & TCP_SYN ) ) {
+  if (/*(pcb->flags & TF_WND_SCALE) && */( flags & TCP_SYN ) ) {
     optflags |= TF_SEG_OPTS_WND_SCALE;
   }
 #endif /* LWIP_TCP_TIMESTAMPS */
@@ -1543,3 +1543,4 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
 }
 #endif /* LWIP_TCP */
+

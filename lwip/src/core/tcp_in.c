@@ -457,10 +457,12 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
       ip_current_src_addr(), tcphdr->dest, tcphdr->src);
   } else if (flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->dest));
+printf("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->dest);
 #if TCP_LISTEN_BACKLOG
     if (pcb->accepts_pending >= pcb->backlog) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: listen backlog exceeded for port %"U16_F"\n", tcphdr->dest));
-      return ERR_ABRT;
+	printf("Bonanza!\n"); 
+     return ERR_ABRT;
     }
 #endif /* TCP_LISTEN_BACKLOG */
     npcb = tcp_alloc(pcb->prio);
@@ -469,6 +471,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
        SYN at a time when we have more memory available. */
     if (npcb == NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: could not allocate PCB\n"));
+      printf("Fuuuuuck\n");
       TCP_STATS_INC(tcp.memerr);
       return ERR_MEM;
     }
@@ -494,7 +497,7 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
     /* Register the new PCB so that we can begin receiving segments
        for it. */
     TCP_REG_ACTIVE(npcb);
-
+printf("Active!\n");
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb);
     npcb->snd_wnd = SND_WND_SCALE(npcb, tcphdr->wnd);
@@ -647,7 +650,7 @@ tcp_process(struct tcp_pcb *pcb)
 
       /* Set ssthresh again after changing pcb->mss (already set in tcp_connect
        * but for the default value of pcb->mss) */
-      pcb->ssthresh = pcb->mss * 10;
+      pcb->ssthresh = TCP_SSTHRSHLD;//pcb->mss * 10;
 
       pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
       LWIP_ASSERT("pcb->snd_queuelen > 0", (pcb->snd_queuelen > 0));
@@ -879,8 +882,9 @@ tcp_receive(struct tcp_pcb *pcb)
     if (TCP_SEQ_LT(pcb->snd_wl1, seqno) ||
        (pcb->snd_wl1 == seqno && TCP_SEQ_LT(pcb->snd_wl2, ackno)) ||
        (pcb->snd_wl2 == ackno && tcphdr->wnd > pcb->snd_wnd)) {
-      pcb->snd_wnd = tcphdr->wnd;
-      /* keep track of the biggest window announced by the remote host to calculate
+    //  pcb->snd_wnd = tcphdr->wnd;
+pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);      
+/* keep track of the biggest window announced by the remote host to calculate
          the maximum segment size */
       if (pcb->snd_wnd_max < tcphdr->wnd) {
         pcb->snd_wnd_max = tcphdr->wnd;
@@ -987,8 +991,11 @@ tcp_receive(struct tcp_pcb *pcb)
       pcb->rto = (pcb->sa >> 3) + pcb->sv;
 
       /* Update the send buffer space. Diff between the two can never exceed 64K? */
+#if LWIP_WND_SCALE
+      pcb->acked = (u32_t)(ackno - pcb->lastack);
+#else
       pcb->acked = (u16_t)(ackno - pcb->lastack);
-
+#endif
       pcb->snd_buf += pcb->acked;
 
       /* Reset the fast retransmit variables. */
@@ -1406,7 +1413,6 @@ tcp_receive(struct tcp_pcb *pcb)
               pcb->state = CLOSE_WAIT;
             } 
           }
-
           pcb->ooseq = cseg->next;
           tcp_seg_free(cseg);
         }
@@ -1414,7 +1420,7 @@ tcp_receive(struct tcp_pcb *pcb)
 
 
         /* Acknowledge the segment(s). */
-        tcp_ack(pcb);
+        tcp_ack_now(pcb);
 
       } else {
         /* We get here if the incoming segment is out-of-sequence. */
@@ -1689,3 +1695,4 @@ tcp_parseopt(struct tcp_pcb *pcb)
 }
 
 #endif /* LWIP_TCP */
+

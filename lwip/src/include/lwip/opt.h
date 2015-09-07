@@ -44,13 +44,13 @@
  */
 #include "lwipopts.h"
 #include "lwip/debug.h"
+#define LWIP_DISABLE_TCP_SANITY_CHECKS 1
 
 /*
    -----------------------------------------------
    ---------- Platform specific locking ----------
    -----------------------------------------------
 */
-
 /**
  * SYS_LIGHTWEIGHT_PROT==1: if you want inter-task protection for certain
  * critical regions during buffer allocation, deallocation and memory
@@ -248,7 +248,7 @@
  * (requires the LWIP_TCP option)
  */
 #ifndef MEMP_NUM_TCP_PCB
-#define MEMP_NUM_TCP_PCB                5
+#define MEMP_NUM_TCP_PCB                256
 #endif
 
 /**
@@ -256,7 +256,7 @@
  * (requires the LWIP_TCP option)
  */
 #ifndef MEMP_NUM_TCP_PCB_LISTEN
-#define MEMP_NUM_TCP_PCB_LISTEN         8
+#define MEMP_NUM_TCP_PCB_LISTEN         128
 #endif
 
 /**
@@ -264,7 +264,7 @@
  * (requires the LWIP_TCP option)
  */
 #ifndef MEMP_NUM_TCP_SEG
-#define MEMP_NUM_TCP_SEG                16
+#define MEMP_NUM_TCP_SEG                160000
 #endif
 
 /**
@@ -329,7 +329,7 @@
  * (only needed if you use the sequential API, like api_lib.c)
  */
 #ifndef MEMP_NUM_NETCONN
-#define MEMP_NUM_NETCONN                4
+#define MEMP_NUM_NETCONN                128
 #endif
 
 /**
@@ -411,7 +411,7 @@
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool. 
  */
 #ifndef PBUF_POOL_SIZE
-#define PBUF_POOL_SIZE                  16
+#define PBUF_POOL_SIZE                  1600000
 #endif
 
 /*
@@ -920,7 +920,7 @@
  * (2 * TCP_MSS) for things to work well
  */
 #ifndef TCP_WND
-#define TCP_WND                         65535
+#define TCP_WND                        (1048576) //(4194048)
 #endif 
 
 /**
@@ -953,7 +953,7 @@
  * an upper limit on the MSS advertised by the remote host.
  */
 #ifndef TCP_MSS
-#define TCP_MSS                         1400
+#define TCP_MSS                         1460
 #endif
 
 /**
@@ -968,13 +968,18 @@
 #define TCP_CALCULATE_EFF_SEND_MSS      1
 #endif
 
+/*Initial slow start threshold*/
+#ifndef TCP_SSTHRSHLD
+#define  TCP_SSTHRSHLD                   TCP_WND
+#endif
+
 
 /**
  * TCP_SND_BUF: TCP sender buffer space (bytes).
  * To achieve good performance, this should be at least 2 * TCP_MSS.
  */
 #ifndef TCP_SND_BUF
-#define TCP_SND_BUF                     (16 * TCP_MSS)
+#define TCP_SND_BUF                    TCP_WND// (32 * TCP_MSS)
 #endif
 
 /**
@@ -991,7 +996,7 @@
  * TCP snd_buf for select to return writable (combined with TCP_SNDQUEUELOWAT).
  */
 #ifndef TCP_SNDLOWAT
-#define TCP_SNDLOWAT                    LWIP_MIN(LWIP_MAX(((TCP_SND_BUF)/2), (2 * TCP_MSS) + 1), (TCP_SND_BUF) - 1)
+#define TCP_SNDLOWAT                  (2 * TCP_MSS)  //LWIP_MIN(LWIP_MAX(((TCP_SND_BUF)/2), (2 * TCP_MSS) + 1), (TCP_SND_BUF) - 1)
 #endif
 
 /**
@@ -1000,7 +1005,7 @@
  * this number, select returns writable (combined with TCP_SNDLOWAT).
  */
 #ifndef TCP_SNDQUEUELOWAT
-#define TCP_SNDQUEUELOWAT               LWIP_MAX(((TCP_SND_QUEUELEN)/2), 5)
+#define TCP_SNDQUEUELOWAT              2 //LWIP_MAX(((TCP_SND_QUEUELEN)/2), 5)
 #endif
 
 /**
@@ -1023,7 +1028,7 @@
  * TCP_LISTEN_BACKLOG: Enable the backlog option for tcp listen pcb.
  */
 #ifndef TCP_LISTEN_BACKLOG
-#define TCP_LISTEN_BACKLOG              0
+#define TCP_LISTEN_BACKLOG              1
 #endif
 
 /**
@@ -1057,7 +1062,7 @@
  * LWIP_TCP_TIMESTAMPS==1: support the TCP timestamp option.
  */
 #ifndef LWIP_TCP_TIMESTAMPS
-#define LWIP_TCP_TIMESTAMPS             0
+#define LWIP_TCP_TIMESTAMPS             1
 #endif
 
 /**
@@ -1081,8 +1086,8 @@
 #endif
 
 #ifndef LWIP_WND_SCALE
-#define LWIP_WND_SCALE			0
-#define TCP_RCV_SCALE			0
+#define LWIP_WND_SCALE			1
+#define TCP_RCV_SCALE			6
 #endif
 
 
@@ -1879,6 +1884,8 @@
    ---------- Debugging options ----------
    ---------------------------------------
 */
+#define LWIP_DEBUG 1
+
 /**
  * LWIP_DBG_MIN_LEVEL: After masking, the value of the debug is
  * compared against this value. If it is smaller, then debugging
@@ -1893,7 +1900,7 @@
  * debug messages of certain types.
  */
 #ifndef LWIP_DBG_TYPES_ON
-#define LWIP_DBG_TYPES_ON               LWIP_DBG_OFF
+#define LWIP_DBG_TYPES_ON               LWIP_DBG_ON
 #endif
 
 /**
@@ -2062,7 +2069,7 @@
  * TCP_RST_DEBUG: Enable debugging for TCP with the RST message.
  */
 #ifndef TCP_RST_DEBUG
-#define TCP_RST_DEBUG                   LWIP_DBG_OFF
+#define TCP_RST_DEBUG                   LWIP_DBG_ON
 #endif
 
 /**

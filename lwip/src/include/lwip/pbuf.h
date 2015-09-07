@@ -90,7 +90,7 @@ struct pbuf {
    * For non-queue packet chains this is the invariant:
    * p->tot_len == p->len + (p->next? p->next->tot_len: 0)
    */
-  u16_t tot_len;
+  u32_t tot_len;
 
   /** length of this buffer */
   u16_t len;

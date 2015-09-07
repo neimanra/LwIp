@@ -67,15 +67,7 @@ tcpip_init_done(void *arg)
   sys_sem_t *sem;
   sem = arg;
 
-  netif.hwaddr[0] = 0x8;
-  netif.hwaddr[1] = 0x0;
-  netif.hwaddr[2] = 0x27;
-  netif.hwaddr[3] = 0xd5;
-  netif.hwaddr[4] = 0x3;
-  netif.hwaddr[5] = 0xf4;
-  IP4_ADDR(&gateway, 192,168,56,1);
-  IP4_ADDR(&ipaddr, 192,168,56,101);
-  IP4_ADDR(&netmask, 255,255,255,0);
+  dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
   
   netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init,
 			      tcpip_input/*ethernet_input*/));
@@ -83,6 +75,9 @@ tcpip_init_done(void *arg)
   netif_set_up(&netif);
   sys_sem_signal(sem);
 }
+
+extern int
+RN_tcpip_thread(void *arg);
 
 int main()
 {
@@ -97,7 +92,7 @@ int main()
   tcpip_init(tcpip_init_done, &sem);
 
  // rte_eal_mp_remote_launch ((lcore_function_t *)dpdkif_rx_thread_func, NULL, SKIP_MASTER);
-
+  rte_eal_remote_launch ((lcore_function_t *)RN_tcpip_thread, NULL,6);
   sys_sem_wait(&sem);
   sys_sem_free(&sem);
 
@@ -113,10 +108,11 @@ int main()
   tcp_nagle_disable(conn->pcb.tcp);
 
   /* Bind connection to well known port number 7. */
-  netconn_bind(conn, NULL, 80);
+  netconn_bind(conn, NULL, 5001);
 
   /* Tell connection to go into listening mode. */
-  netconn_listen(conn);
+	  netconn_listen(conn);
+		printf("SND_WIN:%d\n",conn->pcb.tcp->snd_wnd);
 
   while (1) {
 
@@ -130,12 +126,13 @@ int main()
       u16_t len;
       
       while ((err = netconn_recv(newconn, &buf)) == ERR_OK) {
-          LWIP_PLATFORM_DIAG(("Rcvd!\n"));
+		  LWIP_PLATFORM_DIAG(("Rcvd!\n"));
+	printf("SND_WIN:%d\n",conn->pcb.tcp->snd_wnd);
         //printf("Recved\n");
         do {
              netbuf_data(buf, &data, &len);
              
-             err = netconn_write(newconn, data, len, NETCONN_COPY);
+             err = netconn_write(newconn, data + 12, len - 12, 0/*NETCONN_COPY*/);
              
 #if 0
             if (err != ERR_OK) {
@@ -156,3 +153,4 @@ int main()
 }
 //void _fini(void){
 //}
+

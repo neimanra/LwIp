@@ -223,8 +223,8 @@ static err_t disconnect(struct iperf_state *is, struct tcp_pcb *tpcb)
         return ret;
 
     if (tpcb != NULL && is->server_pcb == tpcb) {
-        if (is->client_pcb == NULL && !(is->flags & RUN_NOW))
-            reverse_connect(is, &tpcb->remote_ip);
+        //if (is->client_pcb == NULL && !(is->flags & RUN_NOW))
+        //    reverse_connect(is, &tpcb->remote_ip);
 
         print_result("rx", is->recv_start_ticks, is->recv_end_ticks,
                      is->recv_bytes);
@@ -236,7 +236,7 @@ static err_t disconnect(struct iperf_state *is, struct tcp_pcb *tpcb)
         is->client_pcb = NULL;
 
     if (is->client_pcb == NULL && is->server_pcb == NULL) {
-        mem_free(is);
+        //mem_free(is);
     }
 
     return ERR_OK;
@@ -317,14 +317,13 @@ err_t iperf_server_init(void)
     ticks_sec = rte_get_timer_hz();
     ///////////////////////////////////////////
     ip_addr_t ipaddr, netmask, gateway;
-
     dpdkif_get_if_params(&ipaddr, &netmask, &gateway, netif.hwaddr);
 
     netif_set_default(netif_add(&netif, &ipaddr, &netmask, &gateway, NULL, dpdkif_init, ethernet_input));
 
     netif_set_up(&netif);
 
-    rte_eal_remote_launch (dpdkif_rx_thread_func, NULL,1);
+    rte_eal_remote_launch (dpdkif_rx_thread_func, NULL,6);
    ////////////////////////////////////////////
 
     for (i = 0; i < sizeof(send_data) / sizeof(*send_data); i++)
@@ -335,6 +334,8 @@ err_t iperf_server_init(void)
 
     if (pcb == NULL)
         return ERR_MEM;
+
+	tcp_nagle_disable(pcb);	
 
     if ((ret = tcp_bind(pcb, IP_ADDR_ANY, IPERF_SERVER_PORT)) != ERR_OK) {
         tcp_close(pcb);

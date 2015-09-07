@@ -37,11 +37,11 @@
 
 #define US_SLEEP_VAL (100)
 
-#define NB_MBUF      (8192)
+#define NB_MBUF      (131072)
 #define MBUF_SIZE    (2048 + sizeof(struct rte_mbuf) + RTE_PKTMBUF_HEADROOM)
 #define MBUF_PBUF_OFFSET (RTE_PKTMBUF_HEADROOM - sizeof(struct pbuf))
 
-#define RX_DESC_DEFAULT (128)
+#define RX_DESC_DEFAULT (2048)
 #define TX_DESC_DEFAULT (512)
 
 struct sys_mbox 
@@ -73,7 +73,7 @@ static u64_t clock_ticks_msec;
 
 static struct sys_thread *threads = NULL;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x440", "-n", "2", "-b", "0000:00:03.0", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x60", "-n", "2", "-b", "0000:00:03.0", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;
@@ -107,6 +107,18 @@ static const struct rte_eth_txconf txconf =
 	.txq_flags = ((uint32_t)ETH_TXQ_FLAGS_NOMULTSEGS | ETH_TXQ_FLAGS_NOOFFLOADS),
 };
 
+static const struct rte_eth_rxconf rxconf =
+{
+    .rx_thresh =
+    {
+        .pthresh = 0, /**< Ring prefetch threshold. */
+        .hthresh = 0, /**< Ring host threshold. */
+        .wthresh = 0, /**< Ring writeback threshold. */
+    },
+    .rx_free_thresh = 64, /**< Drives the freeing of RX descriptors. */
+	.rx_drop_en = 0, /**< Drop packets if no descriptors are available. */
+	.rx_deferred_start = 0, /**< Do not start queue with rte_eth_dev_start(). */
+};
 
 void sys_init(void)
 {
@@ -183,7 +195,7 @@ void sys_init(void)
             {
                 res = rte_eth_rx_queue_setup(portid, queueid, RX_DESC_DEFAULT,
                                              rte_eth_dev_socket_id(portid),
-                                             NULL,
+                                             &rxconf,
                                              dpdk_pktmbuf_pool);
 
                 if (res < 0)
@@ -469,7 +481,12 @@ struct pbuf * sys_arch_allocate_pbuf()
 
 void sys_arch_free_pbuf(struct pbuf * pbuf)
 {
-    rte_pktmbuf_free((struct rte_mbuf *)(((u8_t*)pbuf) - MBUF_PBUF_OFFSET));
+    struct pbuf * next = pbuf;
+    while (next)
+    { 
+        rte_pktmbuf_free((struct rte_mbuf *)(((u8_t*)next) - MBUF_PBUF_OFFSET));
+        next = next->next;
+    }
 }
 
 
@@ -607,4 +624,5 @@ sys_sem_free(struct sys_sem **sem)
     sys_sem_free_internal(*sem);
   }
 }
+
 

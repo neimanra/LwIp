@@ -20,8 +20,8 @@ int main(int argc , char *argv[])
      
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = inet_addr("10.132.251.197");;
-    server.sin_port = htons( 80 );
+    server.sin_addr.s_addr = inet_addr("10.54.85.240");
+    server.sin_port = htons( 5001 );
      
     //Bind
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
@@ -49,7 +49,7 @@ int main(int argc , char *argv[])
     puts("Connection accepted");
      
     //Receive a message from client
-    while( (read_size = recv(client_sock , client_message , 2000 , 0)) > 0 )
+    while( (read_size = recv(client_sock , client_message , 1400 , 0)) > 0 )
     {
         //Send the message back to client
         write(client_sock , client_message , strlen(client_message));
@@ -67,3 +67,4 @@ int main(int argc , char *argv[])
      
     return 0;
 }
+

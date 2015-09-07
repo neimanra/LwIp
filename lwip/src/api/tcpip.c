@@ -228,7 +228,7 @@ err_t RN_fetch_network_packet(struct tcpip_msg ** msg)
  *
  * @param arg unused argument
  */
-static int
+int
 RN_tcpip_thread(void *arg)
 {
   struct tcpip_msg *msg;
@@ -249,6 +249,12 @@ RN_tcpip_thread(void *arg)
     {
         RN_fetch_network_packet(&msg);
     }
+
+else
+{
+int j = 0;
+j++;	
+}
 
     LOCK_TCPIP_CORE();
     if (NULL != msg) 
@@ -603,7 +609,7 @@ tcpip_init(tcpip_init_done_fn initfunc, void *arg)
                       "TCP_WND_UPDATE_THRESHOLD:%u\n"\
                       ,TCP_WND,TCP_MAXRTX,TCP_SYNMAXRTX,TCP_QUEUE_OOSEQ,TCP_MSS,TCP_CALCULATE_EFF_SEND_MSS,TCP_SND_BUF,TCP_SND_QUEUELEN,TCP_SNDLOWAT,TCP_SNDQUEUELOWAT,TCP_WND_UPDATE_THRESHOLD));
 
-  sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
+//  sys_thread_new(TCPIP_THREAD_NAME, RN_tcpip_thread, NULL, TCPIP_THREAD_STACKSIZE, TCPIP_THREAD_PRIO);
 }
 
 /**

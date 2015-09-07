@@ -72,8 +72,8 @@ int main(int argc , char *argv[])
      
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = inet_addr("192.168.56.101");
-    server.sin_port = htons( 80 );
+    server.sin_addr.s_addr = inet_addr("10.54.85.240");
+    server.sin_port = htons( 5001 );
      
     //Bind
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)

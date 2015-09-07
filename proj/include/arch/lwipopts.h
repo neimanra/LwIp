@@ -95,7 +95,7 @@
  * If the application sends a lot of data out of ROM (or other static memory),
  * this should be set high.
  */
-#define MEMP_NUM_PBUF                   160
+#define MEMP_NUM_PBUF                   160000
 
 /**
  * MEMP_NUM_RAW_PCB: Number of raw connection PCBs
@@ -114,19 +114,19 @@
  * MEMP_NUM_TCP_PCB: the number of simulatenously active TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB                4
+#define MEMP_NUM_TCP_PCB                128
 
 /**
  * MEMP_NUM_TCP_PCB_LISTEN: the number of listening TCP connections.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_PCB_LISTEN         4
+#define MEMP_NUM_TCP_PCB_LISTEN         128
 
 /**
  * MEMP_NUM_TCP_SEG: the number of simultaneously queued TCP segments.
  * (requires the LWIP_TCP option)
  */
-#define MEMP_NUM_TCP_SEG                128//16
+#define MEMP_NUM_TCP_SEG                128000//16
 
 /**
  * MEMP_NUM_REASSDATA: the number of simultaneously IP packets queued for
@@ -146,26 +146,26 @@
  * MEMP_NUM_SYS_TIMEOUT: the number of simulateously active timeouts.
  * (requires NO_SYS==0)
  */
-#define MEMP_NUM_SYS_TIMEOUT            3
+#define MEMP_NUM_SYS_TIMEOUT            128
 
 /**
  * MEMP_NUM_NETBUF: the number of struct netbufs.
  * (only needed if you use the sequential API, like api_lib.c)
  */
-#define MEMP_NUM_NETBUF                 2
+#define MEMP_NUM_NETBUF                 128
 
 /**
  * MEMP_NUM_NETCONN: the number of struct netconns.
  * (only needed if you use the sequential API, like api_lib.c)
  */
-#define MEMP_NUM_NETCONN                4
+#define MEMP_NUM_NETCONN                128
 
 /**
  * MEMP_NUM_TCPIP_MSG_API: the number of struct tcpip_msg, which are used
  * for callback/timeout API communication. 
  * (only needed if you use tcpip.c)
  */
-#define MEMP_NUM_TCPIP_MSG_API          8
+#define MEMP_NUM_TCPIP_MSG_API          128
 
 /**
  * MEMP_NUM_TCPIP_MSG_INPKT: the number of struct tcpip_msg, which are used
@@ -180,7 +180,7 @@
 /**
  * PBUF_POOL_SIZE: the number of buffers in the pbuf pool. 
  */
-#define PBUF_POOL_SIZE                  256
+#define PBUF_POOL_SIZE                  	12256
 
 /*
    ---------------------------------
@@ -353,7 +353,7 @@
  */
 #define LWIP_TCP                        1
 
-#define LWIP_LISTEN_BACKLOG             0
+#define LWIP_LISTEN_BACKLOG             1
 
 /*
    ----------------------------------

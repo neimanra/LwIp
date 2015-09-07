@@ -612,7 +612,11 @@ u32_t tcp_update_rcv_ann_wnd(struct tcp_pcb *pcb)
  * @param len the amount of bytes that have been read by the application
  */
 void
+#if LWIP_WND_SCALE
+tcp_recved(struct tcp_pcb *pcb, u32_t len)
+#else
 tcp_recved(struct tcp_pcb *pcb, u16_t len)
+#endif
 {
   int wnd_inflation;
 
@@ -761,7 +765,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->mss = tcp_eff_send_mss(pcb->mss, ipaddr);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
   pcb->cwnd = 1;
-  pcb->ssthresh = pcb->mss * 10;
+  pcb->ssthresh = TCP_SSTHRSHLD;//pcb->mss * 10;
 #if LWIP_CALLBACK_API
   pcb->connected = connected;
 #else /* LWIP_CALLBACK_API */  
@@ -1761,3 +1765,4 @@ tcp_pcbs_sane(void)
 #endif /* TCP_DEBUG */
 
 #endif /* LWIP_TCP */
+

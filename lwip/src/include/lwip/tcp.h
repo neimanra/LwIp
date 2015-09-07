@@ -244,17 +244,26 @@ struct tcp_pcb {
   u32_t snd_lbb;       /* Sequence number of next byte to be buffered. */
 #if LWIP_WND_SCALE  
   u32_t snd_wnd;   /* sender window */
+  u32_t snd_wnd_max; /* the maximum sender window announced by the remote host */
+
+  u32_t acked;
+
+  u32_t snd_buf;   /* Available buffer space for sending (in bytes). */
+
+#define TCP_SNDQUEUELEN_OVERFLOW (0xffffU-3)
+  u32_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
 #else
   u16_t snd_wnd;   /* sender window */
-#endif
+
   u16_t snd_wnd_max; /* the maximum sender window announced by the remote host */
 
   u16_t acked;
 
   u16_t snd_buf;   /* Available buffer space for sending (in bytes). */
+
 #define TCP_SNDQUEUELEN_OVERFLOW (0xffffU-3)
   u16_t snd_queuelen; /* Available buffer space for sending (in tcp_segs). */
-
+#endif
 #if TCP_OVERSIZE
   /* Extra bytes available at the end of the last pbuf in unsent. */
   u16_t unsent_oversize;
@@ -365,7 +374,11 @@ void             tcp_err     (struct tcp_pcb *pcb, tcp_err_fn err);
                                                (pcb)->state == LISTEN)
 #endif /* TCP_LISTEN_BACKLOG */
 
+#if LWIP_WND_SCALE
+void             tcp_recved  (struct tcp_pcb *pcb, u32_t len);
+#else
 void             tcp_recved  (struct tcp_pcb *pcb, u16_t len);
+#endif
 err_t            tcp_bind    (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
                               u16_t port);
 err_t            tcp_connect (struct tcp_pcb *pcb, ip_addr_t *ipaddr,
@@ -404,3 +417,4 @@ const char* tcp_debug_state_str(enum tcp_state s);
 #endif /* LWIP_TCP */
 
 #endif /* __LWIP_TCP_H__ */
+

@@ -63,11 +63,12 @@ sys_arch_pbuf_to_mbuf(struct pbuf  * pbuf)
     return  (struct rte_mbuf*)(((u8_t*)pbuf) - DPDKIF_MBUF_PBUF_OFFSET);
 }
 
+
 static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
     struct rte_mbuf * mbuf = sys_arch_pbuf_to_mbuf(p);
-   
+  
     mbuf->data_off = p->payload - mbuf->buf_addr;
     mbuf->data_len = p->tot_len;
 
@@ -217,7 +218,7 @@ low_level_input(struct netif *netif, struct rte_mbuf ** rx_mbuf_arr, u16_t nb_rx
     rte_mempool_put_bulk(dpdk_pktmbuf_pool, (void * const *)rx_mbuf_arr, nb_rx_pkts);
 }
 
-
+uint64_t pkts_received =0,iterations = 0,max_pkts=0;
 int
 dpdkif_rx_thread_func(void * arg)
 {
@@ -235,6 +236,7 @@ dpdkif_rx_thread_func(void * arg)
 #endif
     for ever
     {
+
         //Loop through all the interfaces
         for (dev_idx = 0; dev_idx < dev_count; dev_idx++) 
         {
@@ -249,7 +251,7 @@ dpdkif_rx_thread_func(void * arg)
 #endif
                 if (netif->input(p, netif) != ERR_OK)
                 {
-                    LWIP_DEBUGF(NETIF_DEBUG, ("ethernetif_input: IP input error\n"));
+                    printf ("ethernetif_input: IP input error\n");
                     pbuf_free(p);
                     p = NULL;
                 }
@@ -268,9 +270,15 @@ dpdkif_rx_thread_func(void * arg)
                     busy_total += rte_get_timer_cycles() - busy_start;
                     busy_start = 0;
                 }
-
-                printf("Utilization:%lf%%\n", (double)(busy_total * 100) / hz);
-                busy_total = 0;
+		struct rte_eth_stats stats;
+		rte_eth_stats_get (0, &stats);
+                //printf("Utilization:%lf%%\n", (double)(busy_total * 100) / hz);
+               	rte_mempool_audit(dpdk_pktmbuf_pool);
+		 printf("Utilization:%lf%%  iterations:%llu pkts/iter:%llu max pkts:%llu, pool:%u ierrors: %llu\n", (double)(busy_total * 100) / hz, iterations, pkts_received/ iterations,max_pkts,rte_mempool_free_count(dpdk_pktmbuf_pool), stats.ierrors);
+                iterations = 0;
+max_pkts=0;
+                pkts_received = 0;
+		busy_total = 0;
                 cycles_end = rte_get_timer_cycles() + hz;
             }
 #endif
@@ -282,7 +290,7 @@ dpdkif_rx_thread_func(void * arg)
     return 0;
 }
 
-
+/*
 struct pbuf *
 dpdkif_rx_pkt(struct netif * inp)
 {
@@ -306,8 +314,10 @@ dpdkif_rx_pkt(struct netif * inp)
     {
     	dpdkif->pkts_ready = rte_eth_rx_burst(dpdkif->portid, 0, dpdkif->pkt_arr, DPDK_MAX_RX_BURST);
 
+iterations++;
         if(dpdkif->pkts_ready)
         {
+pkts_received += dpdkif->pkts_ready;
         	mbuf = dpdkif->pkt_arr[0];
         	dpdkif->pktid = 1;
         	dpdkif->pkts_ready--;
@@ -316,6 +326,74 @@ dpdkif_rx_pkt(struct netif * inp)
         else
         {
         	return NULL;
+        }
+    }
+
+	len = rte_pktmbuf_pkt_len(mbuf);
+
+	p = sys_arch_mbuf_to_pbuf(mbuf);
+
+	p->tot_len = len;
+	p->len = len;
+
+	p->ref = 1;
+	p->type = PBUF_POOL;
+	p->next = NULL;
+
+	p->payload = rte_pktmbuf_mtod(mbuf, void *);
+
+	return p;
+}
+*/
+
+uint64_t chill_end = 0;
+
+struct pbuf *
+dpdkif_rx_pkt(struct netif * inp)
+{
+    struct rte_mbuf * mbuf;
+    struct dpdkif * dpdkif;
+    struct pbuf *p;
+    u16_t len;
+u64_t lhz = rte_get_timer_hz();    
+
+    dpdkif = inp->state;
+
+    //If we have cached packets - use them
+    if(dpdkif->pkts_ready)
+    {
+    	mbuf = dpdkif->pkt_arr[dpdkif->pktid];
+    	dpdkif->pktid++;
+    	dpdkif->pkts_ready--;
+    }
+
+    //Poll driver otherwise
+    else
+    {
+        if (rte_get_timer_cycles() >= chill_end) 
+        {
+            dpdkif->pkts_ready = rte_eth_rx_burst(dpdkif->portid, 0, dpdkif->pkt_arr, DPDK_MAX_RX_BURST);
+            chill_end = rte_get_timer_cycles() + (lhz / 30000);
+            iterations++;
+            if(dpdkif->pkts_ready)
+            {
+                pkts_received += dpdkif->pkts_ready;
+		if(dpdkif->pkts_ready >max_pkts)
+		max_pkts=dpdkif->pkts_ready;
+                mbuf = dpdkif->pkt_arr[0];
+                dpdkif->pktid = 1;
+                dpdkif->pkts_ready--;
+            }
+
+            else
+            {
+                return NULL;
+            }
+        }
+
+        else
+        {
+            return NULL;
         }
     }
 
@@ -337,7 +415,6 @@ dpdkif_rx_pkt(struct netif * inp)
 
 	return p;
 }
-
 
 struct pbuf *
 dpdkif_fetch_pkt(struct netif ** inp)

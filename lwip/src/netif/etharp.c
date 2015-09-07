@@ -207,7 +207,7 @@ etharp_tmr(void)
 {
   u8_t i;
 
-  LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_timer\n"));
+  //LWIP_DEBUGF(ETHARP_DEBUG, ("etharp_timer\n"));
   /* remove expired entries from the ARP table */
   for (i = 0; i < ARP_TABLE_SIZE; ++i) {
     u8_t state = arp_table[i].state;
