@@ -49,14 +49,9 @@ struct sys_mbox
    struct  rte_ring * ring;
 };
 
-/*
+
 struct sys_sem 
 {
-   rte_spinlock_t spinlock;
-};
-*/
-
-struct sys_sem {
   unsigned int c;
   pthread_cond_t cond;
   pthread_mutex_t mutex;
@@ -73,7 +68,7 @@ static u64_t clock_ticks_msec;
 
 static struct sys_thread *threads = NULL;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x60", "-n", "2", "-b", "0000:00:03.0", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", "-b", "0000:00:03.0", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;
@@ -239,74 +234,6 @@ void sys_init(void)
    }
 }
 
-/*
-err_t sys_sem_new(sys_sem_t *sem, u8_t count)
-{
-   struct sys_sem * isem = (struct sys_sem *)rte_malloc("NORM", sizeof(struct sys_sem), 0);
-
-   if (NULL != isem) 
-   {
-      rte_spinlock_init(&isem->spinlock);
-
-      if (0 == count) 
-      {
-         rte_spinlock_lock (&isem->spinlock);
-      }
-
-      *sem = isem;
-
-      return ERR_OK;
-   }
-
-   return ERR_MEM;
-}
-
-
-void sys_sem_free(sys_sem_t *sem)
-{
-   rte_free(*sem);
-}
-
-void sys_sem_signal(sys_sem_t *sem)
-{
-   struct sys_sem * isem = *sem;
-   rte_spinlock_unlock (&isem->spinlock);
-}
-
-u32_t sys_arch_sem_wait(sys_sem_t *sem, u32_t timeout)
-{
-   struct sys_sem * isem = *sem;
-   u64_t start_ticks = rte_get_timer_cycles();
-
-   if (0 != timeout) 
-   {
-      u64_t curr_ticks = start_ticks;
-      u64_t end_ticks = start_ticks + (timeout * clock_ticks_msec);
-
-      while (curr_ticks < end_ticks) 
-      {
-         if(0 == rte_spinlock_trylock(&isem->spinlock))
-         {
-            rte_delay_us(US_SLEEP_VAL);
-            curr_ticks = rte_get_timer_cycles();
-         }
-
-         else
-         {
-            return (curr_ticks - start_ticks) / clock_ticks_msec;
-         }
-      }
-
-      return SYS_ARCH_TIMEOUT;
-   }
-
-   else
-   {
-      rte_spinlock_lock (&isem->spinlock);
-      return (rte_get_timer_cycles() - start_ticks) / clock_ticks_msec;
-   }
-}
-*/
 
 err_t sys_mbox_new(sys_mbox_t *mbox, int size)
 {
@@ -358,7 +285,6 @@ void sys_mbox_post(sys_mbox_t *mbox, void *msg)
 
    while (0 != res) 
    {
-      //rte_delay_us(US_SLEEP_VAL);
       res = rte_ring_enqueue( (*mbox)->ring, msg);
    }
 }
@@ -384,7 +310,6 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
       {
          if(0 != rte_ring_dequeue(imbox->ring, msg))
          {
-            //rte_delay_us(US_SLEEP_VAL);
             curr_ticks = rte_get_timer_cycles();
          }
 
@@ -399,18 +324,8 @@ u32_t sys_arch_mbox_fetch(sys_mbox_t *mbox, void **msg, u32_t timeout)
 
    else
    {
-      while (1) 
-      {
-         if(0 != rte_ring_dequeue(imbox->ring, msg))
-         {
-            //rte_delay_us(US_SLEEP_VAL);
-         }
-
-         else
-         {
-            return (rte_get_timer_cycles() - start_ticks) / clock_ticks_msec;
-         }
-      }
+      while (0 != rte_ring_dequeue(imbox->ring, msg));
+      return (rte_get_timer_cycles() - start_ticks) / clock_ticks_msec;
    }
 }
 
@@ -620,7 +535,6 @@ void
 sys_sem_free(struct sys_sem **sem)
 {
   if ((sem != NULL) && (*sem != NULL)) {
-    //SYS_STATS_DEC(sem.used);
     sys_sem_free_internal(*sem);
   }
 }

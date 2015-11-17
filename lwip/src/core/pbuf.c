@@ -236,7 +236,6 @@ pbuf_alloc(pbuf_layer layer, u16_t length, pbuf_type type)
   switch (type) {
   case PBUF_POOL:
     /* allocate head of pbuf chain into p */
-    //p = (struct pbuf *)memp_malloc(MEMP_PBUF_POOL); //TODO
     p = sys_arch_allocate_pbuf();
 
     LWIP_DEBUGF(PBUF_DEBUG | LWIP_DBG_TRACE, ("pbuf_alloc: allocated pbuf %p\n", (void *)p));
@@ -307,7 +306,6 @@ pbuf_alloc(pbuf_layer layer, u16_t length, pbuf_type type)
     break;
   case PBUF_RAM:
     /* If pbuf is to be allocated in RAM, allocate memory for it. */
-    //p = (struct pbuf*)mem_malloc(LWIP_MEM_ALIGN_SIZE(SIZEOF_STRUCT_PBUF + offset) + LWIP_MEM_ALIGN_SIZE(length));//TODO
     p = sys_arch_allocate_pbuf();
     if (p == NULL) {
       return NULL;
@@ -671,14 +669,12 @@ pbuf_free(struct pbuf *p)
       {
         /* is this a pbuf from the pool? */
         if (type == PBUF_POOL) {
-          //memp_free(MEMP_PBUF_POOL, p);//TODO
           sys_arch_free_pbuf(p);
         /* is this a ROM or RAM referencing pbuf? */
         } else if (type == PBUF_ROM || type == PBUF_REF) {
           memp_free(MEMP_PBUF, p);
         /* type == PBUF_RAM */
         } else {
-         // mem_free(p);
           sys_arch_free_pbuf(p);//TODO
         }
       }

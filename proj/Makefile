@@ -29,7 +29,7 @@
 # Author: Adam Dunkels <adam@sics.se>
 #
 
-CONTRIBDIR=/root/LwIp
+CONTRIBDIR=/home/rami/Teridion/LwIp
 LWIPARCH=$(CONTRIBDIR)/proj
 DPDKDIR=$(CONTRIBDIR)/dpdk
 
@@ -40,7 +40,7 @@ LWIPDIR=$(CONTRIBDIR)/lwip/src
 
 CCDEP=gcc
 CC=gcc
-CFLAGS=-g -O3 -Wall -Wno-char-subscripts -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
+CFLAGS=-g -O0 -Wall -Wno-char-subscripts -DIPv4 -DLWIP_RAW -DLWIP_DEBUG
 
 CFLAGS:=$(CFLAGS) \
 	-march=native -I$(LWIPDIR)/include -I$(LWIPARCH)/include -I$(LWIPARCH)/include/arch -I$(LWIPARCH)/include/netif -I$(LWIPDIR)/include/ipv4 \
@@ -87,10 +87,10 @@ depend dep: .depend
 
 include .depend
 
-echop: $(LWIPOBJS) echo_server.o
+echop: $(LWIPOBJS) echo_server_socket.o
 	$(CC) -g  -o echop $^ -lpthread -lrt  -L$(CONTRIBDIR)/dpdk/x86_64-native-linuxapp-gcc/lib -Wl,--whole-archive -lintel_dpdk -Wl,--no-whole-archive -ldl -lm
 	rm -f *.o
 #$@ $^
 
-.depend: src/app/echo_server.c $(LWIPFILES)
+.depend: src/app/echo_server_socket.c $(LWIPFILES)
 	$(CCDEP) $(CFLAGS) -MM $^ > .depend || rm -f .depend

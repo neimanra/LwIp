@@ -373,7 +373,7 @@ tcp_write(struct tcp_pcb *pcb, const void *arg, u16_t len, u8_t apiflags)
   u8_t optflags = 0;
 #if TCP_OVERSIZE
   u16_t oversize = 0;
-  u16_t oversize_used = 0;  
+  u16_t oversize_used = 0;
 #endif /* TCP_OVERSIZE */
 #if TCP_CHECKSUM_ON_COPY
   u16_t concat_chksum = 0;
@@ -806,7 +806,6 @@ tcp_enqueue_flags(struct tcp_pcb *pcb, u8_t flags)
                ntohl(seg->tcphdr->seqno) + TCP_TCPLEN(seg),
                (u16_t)flags));
 
-
   /* Now append seg to pcb->unsent queue */
   if (pcb->unsent == NULL) {
     pcb->unsent = seg;
@@ -893,7 +892,7 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
     optlen = LWIP_TCP_OPT_LENGTH(TF_SEG_OPTS_TS);
   }
 #endif
-  
+
   p = tcp_output_alloc_header(pcb, optlen, 0, htonl(pcb->snd_nxt));
   if (p == NULL) {
     LWIP_DEBUGF(TCP_OUTPUT_DEBUG, ("tcp_output: (ACK) could not allocate pbuf\n"));
@@ -928,7 +927,6 @@ tcp_send_empty_ack(struct tcp_pcb *pcb)
   ip_output(p, &(pcb->local_ip), &(pcb->remote_ip), pcb->ttl, pcb->tos,
       IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
-  //pbuf_free(p);
 
   return ERR_OK;
 }
@@ -974,7 +972,7 @@ tcp_output(struct tcp_pcb *pcb)
    *
    * If data is to be sent, we will just piggyback the ACK (see below).
    */
-  if (pcb->flags & TF_ACK_NOW &&
+  if ((pcb->flags & TF_ACK_NOW) &&
      (seg == NULL ||
       ntohl(seg->tcphdr->seqno) - pcb->lastack + seg->len > wnd)) {
      return tcp_send_empty_ack(pcb);
@@ -1284,7 +1282,6 @@ tcp_rst(u32_t seqno, u32_t ackno,
   snmp_inc_tcpoutrsts();
    /* Send output with hardcoded TTL since we have no access to the pcb */
   ip_output(p, local_ip, remote_ip, TCP_TTL, 0, IP_PROTO_TCP);
-  //pbuf_free(p);
   LWIP_DEBUGF(TCP_RST_DEBUG, ("tcp_rst: seqno %"U32_F" ackno %"U32_F".\n", seqno, ackno));
 }
 
@@ -1455,7 +1452,6 @@ tcp_keepalive(struct tcp_pcb *pcb)
   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
 
-  //pbuf_free(p);
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_keepalive: seqno %"U32_F" ackno %"U32_F".\n",
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
@@ -1536,11 +1532,9 @@ tcp_zero_window_probe(struct tcp_pcb *pcb)
   ip_output(p, &pcb->local_ip, &pcb->remote_ip, pcb->ttl, 0, IP_PROTO_TCP);
 #endif /* LWIP_NETIF_HWADDRHINT*/
 
-  //pbuf_free(p);
 
   LWIP_DEBUGF(TCP_DEBUG, ("tcp_zero_window_probe: seqno %"U32_F
                           " ackno %"U32_F".\n",
                           pcb->snd_nxt - 1, pcb->rcv_nxt));
 }
 #endif /* LWIP_TCP */
-

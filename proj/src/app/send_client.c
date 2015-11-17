@@ -193,7 +193,7 @@ static err_t recv(void *arg, struct tcp_pcb *tpcb, struct pbuf *p, err_t err)
 
 int main()
 {
-    iperf_server_init();
+    echo_server_init();
 
     while(1)
     {
@@ -203,7 +203,7 @@ int main()
     return 0;
 }
 struct netif netif;
-err_t iperf_server_init(void)
+err_t echo_server_init(void)
 {
     int i;
     err_t ret = ERR_OK;

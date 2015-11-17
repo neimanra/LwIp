@@ -49,6 +49,6 @@
 #endif
 
 
-err_t iperf_server_init(void);
+err_t echo_server_init(void);
 
 #endif

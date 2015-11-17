@@ -765,7 +765,7 @@ tcp_connect(struct tcp_pcb *pcb, ip_addr_t *ipaddr, u16_t port,
   pcb->mss = tcp_eff_send_mss(pcb->mss, ipaddr);
 #endif /* TCP_CALCULATE_EFF_SEND_MSS */
   pcb->cwnd = 1;
-  pcb->ssthresh = TCP_SSTHRSHLD;//pcb->mss * 10;
+  pcb->ssthresh = TCP_SSTHRSHLD;
 #if LWIP_CALLBACK_API
   pcb->connected = connected;
 #else /* LWIP_CALLBACK_API */  
@@ -1569,7 +1569,7 @@ tcp_pcb_remove(struct tcp_pcb **pcblist, struct tcp_pcb *pcb)
   /* if there is an outstanding delayed ACKs, send it */
   if (pcb->state != TIME_WAIT &&
      pcb->state != LISTEN &&
-     pcb->flags & TF_ACK_DELAY) {
+     (pcb->flags & TF_ACK_DELAY)) {
     pcb->flags |= TF_ACK_NOW;
     tcp_output(pcb);
   }
@@ -1765,4 +1765,3 @@ tcp_pcbs_sane(void)
 #endif /* TCP_DEBUG */
 
 #endif /* LWIP_TCP */
-

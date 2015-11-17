@@ -457,11 +457,9 @@ tcp_listen_input(struct tcp_pcb_listen *pcb)
       ip_current_src_addr(), tcphdr->dest, tcphdr->src);
   } else if (flags & TCP_SYN) {
     LWIP_DEBUGF(TCP_DEBUG, ("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->dest));
-printf("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->dest);
 #if TCP_LISTEN_BACKLOG
     if (pcb->accepts_pending >= pcb->backlog) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: listen backlog exceeded for port %"U16_F"\n", tcphdr->dest));
-	printf("Bonanza!\n"); 
      return ERR_ABRT;
     }
 #endif /* TCP_LISTEN_BACKLOG */
@@ -471,7 +469,6 @@ printf("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->de
        SYN at a time when we have more memory available. */
     if (npcb == NULL) {
       LWIP_DEBUGF(TCP_DEBUG, ("tcp_listen_input: could not allocate PCB\n"));
-      printf("Fuuuuuck\n");
       TCP_STATS_INC(tcp.memerr);
       return ERR_MEM;
     }
@@ -497,7 +494,6 @@ printf("TCP connection request %"U16_F" -> %"U16_F".\n", tcphdr->src, tcphdr->de
     /* Register the new PCB so that we can begin receiving segments
        for it. */
     TCP_REG_ACTIVE(npcb);
-printf("Active!\n");
     /* Parse any options in the SYN. */
     tcp_parseopt(npcb);
     npcb->snd_wnd = SND_WND_SCALE(npcb, tcphdr->wnd);
@@ -650,7 +646,7 @@ tcp_process(struct tcp_pcb *pcb)
 
       /* Set ssthresh again after changing pcb->mss (already set in tcp_connect
        * but for the default value of pcb->mss) */
-      pcb->ssthresh = TCP_SSTHRSHLD;//pcb->mss * 10;
+      pcb->ssthresh = TCP_SSTHRSHLD;
 
       pcb->cwnd = ((pcb->cwnd == 1) ? (pcb->mss * 2) : pcb->mss);
       LWIP_ASSERT("pcb->snd_queuelen > 0", (pcb->snd_queuelen > 0));
@@ -769,7 +765,7 @@ tcp_process(struct tcp_pcb *pcb)
     break;
   case FIN_WAIT_2:
     tcp_receive(pcb);
-    if (recv_flags & TF_GOT_FIN) {
+    if ((recv_flags & TF_GOT_FIN)) {
       LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: FIN_WAIT_2 %"U16_F" -> %"U16_F".\n", inseg.tcphdr->src, inseg.tcphdr->dest));
       tcp_ack_now(pcb);
       tcp_pcb_purge(pcb);
@@ -780,7 +776,7 @@ tcp_process(struct tcp_pcb *pcb)
     break;
   case CLOSING:
     tcp_receive(pcb);
-    if (flags & TCP_ACK && ackno == pcb->snd_nxt) {
+    if ((flags & TCP_ACK) && (ackno == pcb->snd_nxt)) {
       LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: CLOSING %"U16_F" -> %"U16_F".\n", inseg.tcphdr->src, inseg.tcphdr->dest));
       tcp_pcb_purge(pcb);
       TCP_RMV_ACTIVE(pcb);
@@ -790,7 +786,7 @@ tcp_process(struct tcp_pcb *pcb)
     break;
   case LAST_ACK:
     tcp_receive(pcb);
-    if (flags & TCP_ACK && ackno == pcb->snd_nxt) {
+    if ((flags & TCP_ACK) && (ackno == pcb->snd_nxt)) {
       LWIP_DEBUGF(TCP_DEBUG, ("TCP connection closed: LAST_ACK %"U16_F" -> %"U16_F".\n", inseg.tcphdr->src, inseg.tcphdr->dest));
       /* bugfix #21699: don't set pcb->state to CLOSED here or we risk leaking segments */
       recv_flags |= TF_CLOSED;
@@ -882,8 +878,7 @@ tcp_receive(struct tcp_pcb *pcb)
     if (TCP_SEQ_LT(pcb->snd_wl1, seqno) ||
        (pcb->snd_wl1 == seqno && TCP_SEQ_LT(pcb->snd_wl2, ackno)) ||
        (pcb->snd_wl2 == ackno && tcphdr->wnd > pcb->snd_wnd)) {
-    //  pcb->snd_wnd = tcphdr->wnd;
-pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);      
+		pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);      
 /* keep track of the biggest window announced by the remote host to calculate
          the maximum segment size */
       if (pcb->snd_wnd_max < tcphdr->wnd) {
@@ -1035,8 +1030,7 @@ pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);
           LWIP_DEBUGF(TCP_CWND_DEBUG, ("tcp_receive: congestion avoidance cwnd %"U16_F"\n", pcb->cwnd));
 #endif
         }
-      }	    
-
+      }
       LWIP_DEBUGF(TCP_INPUT_DEBUG, ("tcp_receive: ACK for %"U32_F", unacked->seqno %"U32_F":%"U32_F"\n",
                                     ackno,
                                     pcb->unacked != NULL?
@@ -1077,8 +1071,8 @@ pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);
         LWIP_DEBUGF(TCP_QLEN_DEBUG, ("%"U16_F" (after freeing unacked)\n", (u16_t)pcb->snd_queuelen));
 #endif	
         if (pcb->snd_queuelen != 0) {
-          //LWIP_ASSERT("tcp_receive: valid queue length", pcb->unacked != NULL ||
-          //            pcb->unsent != NULL);
+          LWIP_ASSERT("tcp_receive: valid queue length", pcb->unacked != NULL ||
+                      pcb->unsent != NULL);
         }
       }
 
@@ -1322,7 +1316,7 @@ pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);
                    TCP_SEQ_GEQ(seqno + tcplen,
                                next->tcphdr->seqno + next->len)) {
               /* inseg cannot have FIN here (already processed above) */
-              if (TCPH_FLAGS(next->tcphdr) & TCP_FIN &&
+              if ((TCPH_FLAGS(next->tcphdr) & TCP_FIN) &&
                   (TCPH_FLAGS(inseg.tcphdr) & TCP_SYN) == 0) {
                 TCPH_SET_FLAG(inseg.tcphdr, TCP_FIN);
                 tcplen = TCP_TCPLEN(&inseg);
@@ -1413,6 +1407,7 @@ pcb->snd_wnd = SND_WND_SCALE(pcb, tcphdr->wnd);
               pcb->state = CLOSE_WAIT;
             } 
           }
+
           pcb->ooseq = cseg->next;
           tcp_seg_free(cseg);
         }
@@ -1605,7 +1600,7 @@ tcp_parseopt(struct tcp_pcb *pcb)
 #if LWIP_TCP_TIMESTAMPS
   u32_t tsval;
 #endif
-  
+
   opts = (u8_t *)tcphdr + TCP_HLEN;
 
   /* Parse the TCP MSS option, if present. */
@@ -1695,4 +1690,3 @@ tcp_parseopt(struct tcp_pcb *pcb)
 }
 
 #endif /* LWIP_TCP */
-
