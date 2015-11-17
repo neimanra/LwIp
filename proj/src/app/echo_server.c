@@ -141,7 +141,7 @@ err_t echo_server_init(void)
 
     netif_set_up(&netif);
 
-    rte_eal_remote_launch (dpdkif_rx_thread_func, NULL, 6);
+    rte_eal_mp_remote_launch((lcore_function_t *)dpdkif_rx_thread_func, NULL, SKIP_MASTER);
    ////////////////////////////////////////////
 
     struct tcp_pcb *pcb;

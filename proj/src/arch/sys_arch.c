@@ -68,7 +68,7 @@ static u64_t clock_ticks_msec;
 
 static struct sys_thread *threads = NULL;
 
-static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", "-b", "0000:00:03.0", NULL};
+static s8_t *dpdk_argv[] = {"LwIp", "-c", "0x3", "-n", "2", "-b", "0000:00:03.0", "-b", "0000:00:09.0", NULL};
 static s32_t dpdk_argc = sizeof(dpdk_argv) / sizeof(char*) - 1;
 
 struct rte_mempool * dpdk_pktmbuf_pool = NULL;

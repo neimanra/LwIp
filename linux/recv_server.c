@@ -7,7 +7,8 @@
 #include <time.h>
 
 uint64_t eal_tsc_resolution_hz = 0;
-
+double log_1024;
+const char * suffix_arr[] = {"","K","M","G"};
 
 static uint64_t
 get_tsc()
@@ -52,6 +53,19 @@ set_tsc_freq_from_clock(void)
 	return -1;
 }
 
+void
+print_statistics(uint64_t bytes_received)
+{
+	double val, bits_received = bytes_received * 8;
+
+	uint8_t order;
+	uint32_t denominator;
+
+	order = log(bits_received) / log_1024;
+	denominator = 1 << (10 * order);
+	val = bits_received / denominator;
+	printf("Recv rate: %.3lf %sb/s ", val, suffix_arr[order]);
+}
 
 int main(int argc , char *argv[])
 {
@@ -59,8 +73,9 @@ int main(int argc , char *argv[])
     unsigned long long total_rcvd = 0;
     struct sockaddr_in server , client;
     char client_message[2000];
-     
-    printf("Clock measure:%d\n\n",set_tsc_freq_from_clock());
+    log_1024 = log(1024);
+    set_tsc_freq_from_clock();
+    printf("CPU Hz:%llu\n\n", (unsigned long long)eal_tsc_resolution_hz);
 
     //Create socket
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
