@@ -407,7 +407,11 @@ void sys_arch_free_pbuf(struct pbuf * pbuf)
 
 void sys_arch_free_pbuf_ref(struct pbuf * pbuf)
 {
-    rte_mbuf_refcnt_update((struct rte_mbuf *)(((u8_t*)pbuf) - MBUF_PBUF_OFFSET), 1);
+	while(pbuf)
+	{
+		rte_mbuf_refcnt_update((struct rte_mbuf *)(((u8_t*)pbuf) - MBUF_PBUF_OFFSET), 1);
+		pbuf = pbuf->next;
+	}
 }
 
 /*-----------------------------------------------------------------------------------*/

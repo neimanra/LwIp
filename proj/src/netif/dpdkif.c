@@ -67,21 +67,48 @@ sys_arch_pbuf_to_mbuf(struct pbuf  * pbuf)
 static err_t
 low_level_output(struct netif *netif, struct pbuf *p)
 {
-    struct rte_mbuf * mbuf = sys_arch_pbuf_to_mbuf(p);
-  
-    mbuf->data_off = p->payload - mbuf->buf_addr;
-    mbuf->data_len = p->tot_len;
+    struct rte_mbuf * mbuf, * prev = NULL, *first;
+    int i = 0;
+    //printf(">>>>>>>>>>>>>>>>\nLen: %u \n", p->tot_len);
 
-    if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 /*TODO*/, &mbuf, 1))
+    first = sys_arch_pbuf_to_mbuf(p);
+
+    while(p)
     {
-        return ERR_OK;
+		mbuf = sys_arch_pbuf_to_mbuf(p);
+		mbuf->data_off = p->payload - mbuf->buf_addr;
+		mbuf->data_len = p->len;
+
+		if(prev != NULL)
+		{
+			prev->next = mbuf;
+			first->nb_segs++;
+		}
+
+		//if(i >= 1)
+		{
+			//printf("Len: %u \n", p->len);
+		}
+
+		prev = mbuf;
+		p = p->next;
+		//i++;
     }
 
-    else
-    {
-        rte_pktmbuf_free(mbuf);
-        return ERR_IF;
-    }
+
+
+	if(1 == rte_eth_tx_burst(((struct dpdkif*)(netif->state))->portid, 0 /*TODO*/, &first, 1))
+	{
+
+	}
+
+	else
+	{
+		rte_pktmbuf_free(mbuf);
+		return ERR_IF;
+	}
+
+    return ERR_OK;
 }
 
 
@@ -123,7 +150,7 @@ dpdkif_init(struct netif *netif)
         netif->state = dpdkif;
         netif->name[0] = IFNAME0;
         netif->name[1] = IFNAME1;
-        netif->mtu = 1500;
+        netif->mtu = 1460;
         netif->hwaddr_len = 6;
         netif->flags = NETIF_FLAG_BROADCAST | NETIF_FLAG_ETHARP | NETIF_FLAG_IGMP;
         netif->linkoutput = low_level_output;

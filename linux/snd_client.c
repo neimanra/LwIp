@@ -91,7 +91,7 @@ int main(int argc , char *argv[])
     }
     puts("Socket created");
      
-    server.sin_addr.s_addr = inet_addr("192.168.56.101");
+    server.sin_addr.s_addr = inet_addr("192.168.56.102");
     server.sin_family = AF_INET;
     server.sin_port = htons( 5001 );
  
@@ -117,7 +117,7 @@ int main(int argc , char *argv[])
             return 1;
         }
          
-        rcvd = recv(sock , buffer , 1300 , 0);
+        rcvd = recv(sock , buffer , 1300 , MSG_DONTWAIT);
 
         if (rcvd > 0)
         {
@@ -126,8 +126,8 @@ int main(int argc , char *argv[])
 
         else
         {
-        	puts("Disconnected from server\n");
-        	return 0;
+//        	puts("Disconnected from server\n");
+//        	return 0;
         }
 
         if(get_tsc() >= end)
